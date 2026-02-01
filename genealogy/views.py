@@ -102,6 +102,18 @@ class PersonDetailView(DetailView):
     template_name = 'genealogy/person_detail.html'
     context_object_name = 'person'
     
+    def get_queryset(self):
+        """优化查询集，减少数据库查询次数"""
+        return Person.objects.select_related(
+            'generation', 'father', 'mother', 'branch'
+        ).prefetch_related(
+            'spouses',
+            'husband_relations',
+            'wife_relations',
+            'children_as_father',
+            'children_as_mother'
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         person = self.object
@@ -113,28 +125,26 @@ class PersonDetailView(DetailView):
             spouse_relations = SpouseRelation.objects.filter(wife=person)
         context['spouse_relations'] = spouse_relations
         
-        # 获取子女
-        if person.gender == 'M':
-            children = Person.objects.filter(father=person)
-        else:
-            children = Person.objects.filter(mother=person)
+        # 获取子女（使用新方法）
+        children = person.get_all_children()
         context['children'] = children
         
         # 获取兄弟姐妹
-        siblings = []
-        if person.father:
-            siblings = Person.objects.filter(
-                father=person.father
-            ).exclude(pk=person.pk)
+        siblings = person.get_siblings()
         context['siblings'] = siblings
         
         # 祖先路径
-        ancestors = []
-        current = person
-        while current.father:
-            ancestors.append(current.father)
-            current = current.father
-        context['ancestors'] = reversed(ancestors)
+        ancestors = person.get_ancestors_chain()
+        context['ancestors'] = ancestors
+        
+        # 家庭成员
+        family_members = person.get_family_members()
+        context['family_members'] = family_members
+        
+        # 辈份信息
+        context['generation_depth'] = person.get_generation_depth()
+        if hasattr(person, 'generation') and person.generation:
+            context['generation_title'] = person.generation.get_generation_title()
         
         return context
 

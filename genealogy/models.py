@@ -19,6 +19,23 @@ class Generation(models.Model):
     
     def __str__(self):
         return f"第{self.number}世"
+    
+    def get_generation_title(self):
+        """获取世代称谓"""
+        if self.number == 1:
+            return "始祖"
+        elif self.number == 2:
+            return "二世祖"
+        elif self.number == 3:
+            return "三世祖"
+        elif self.number <= 9:
+            return f"{self.number}世祖"
+        else:
+            return f"第{self.number}世"
+    
+    def get_person_count(self):
+        """获取该世代的人数"""
+        return self.persons.count()
 
 
 class Branch(models.Model):
@@ -181,6 +198,57 @@ class Person(models.Model):
             siblings = self.father.children_as_father.exclude(pk=self.pk)
             return siblings
         return Person.objects.none()
+    
+    def get_all_children(self):
+        """获取所有子女（包括作为父亲和母亲的子女）"""
+        children = set()
+        if self.gender == 'M':
+            children.update(self.children_as_father.all())
+        else:
+            children.update(self.children_as_mother.all())
+        # 合并并排序
+        return sorted(children, key=lambda x: (x.order, x.id))
+    
+    def get_family_members(self):
+        """获取所有家庭成员"""
+        family = {
+            'parents': [],
+            'spouses': [],
+            'children': [],
+            'siblings': []
+        }
+        
+        # 父母
+        if self.father:
+            family['parents'].append(self.father)
+        if self.mother:
+            family['parents'].append(self.mother)
+        
+        # 配偶
+        family['spouses'] = list(self.spouses.all())
+        
+        # 子女
+        family['children'] = self.get_all_children()
+        
+        # 兄弟姐妹
+        family['siblings'] = list(self.get_siblings())
+        
+        return family
+    
+    def get_generation_depth(self):
+        """获取辈份深度"""
+        if hasattr(self, 'generation'):
+            return self.generation.number
+        return 0
+    
+    def get_ancestors_chain(self):
+        """获取祖先链"""
+        ancestors = []
+        current = self
+        while current.father:
+            ancestors.append(current.father)
+            current = current.father
+        return reversed(ancestors)
 
 
 class SpouseRelation(models.Model):
