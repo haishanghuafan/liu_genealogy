@@ -2,6 +2,94 @@
 
 {% block title %}{{ person.name }} - 刘氏乾正公族谱{% endblock %}
 
+{% block extra_css %}
+<style>
+/* 关系图表样式 */
+.chart-container {
+    width: 100%;
+    min-height: 500px;
+    position: relative;
+    overflow: auto;
+}
+
+.tree-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tree-node {
+    padding: 8px 16px;
+    margin: 5px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 120px;
+    text-align: center;
+}
+
+.tree-node:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.tree-node.female {
+    background: linear-gradient(135deg, #C71585 0%, #DB7093 100%);
+}
+
+.tree-connector {
+    width: 2px;
+    background: var(--border-color);
+    margin: 0 auto;
+}
+
+.timeline-view {
+    position: relative;
+}
+
+.timeline-item {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+.timeline-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    margin-right: 15px;
+    margin-top: 5px;
+}
+
+.timeline-content {
+    flex: 1;
+    padding: 10px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.view-toggle {
+    margin-bottom: 20px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .chart-container {
+        min-height: 400px;
+    }
+    
+    .tree-node {
+        min-width: 100px;
+        font-size: 0.9rem;
+        padding: 6px 12px;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- 面包屑导航 -->
 <div class="container mt-3">
@@ -29,7 +117,18 @@
                 {% endif %}
             </div>
             <div class="col-md-4 text-md-end">
+                {% if person.avatar %}
+                <img src="{{ person.avatar.url }}" alt="{{ person.name }}" class="img-fluid rounded-circle" style="max-height: 120px;">
+                {% else %}
                 <i class="bi bi-person-badge" style="font-size: 6rem; opacity: 0.5;"></i>
+                {% endif %}
+                {% if user.is_authenticated and user == person.related_user %}
+                <div class="mt-2">
+                    <a href="{% url 'genealogy:person_edit' person.pk %}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-pencil me-1"></i>编辑信息
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -95,6 +194,204 @@
                             {% endif %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- 关系图表 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>家族关系</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 视图切换 -->
+                    <div class="view-toggle">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-primary active" id="tree-view-btn">
+                                <i class="bi bi-diagram-3 me-1"></i>垂直树状图
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="timeline-view-btn">
+                                <i class="bi bi-clock-history me-1"></i>时间轴
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 图表容器 -->
+                    <div class="chart-container">
+                        <!-- 垂直树状图 -->
+                        <div id="tree-view" class="tree-view">
+                            <!-- 父母层 -->
+                            {% if person.father or person.mother %}
+                            <div class="d-flex justify-content-center mb-4">
+                                {% if person.father %}
+                                <div class="tree-node {% if person.father.gender == 'F' %}female{% endif %}">
+                                    <a href="{{ person.father.get_absolute_url }}" style="color: white; text-decoration: none;">
+                                        {{ person.father.name }}
+                                    </a>
+                                    <small class="d-block">父亲</small>
+                                </div>
+                                {% endif %}
+                                {% if person.mother %}
+                                <div class="tree-node {% if person.mother.gender == 'F' %}female{% endif %} ml-4">
+                                    <a href="{{ person.mother.get_absolute_url }}" style="color: white; text-decoration: none;">
+                                        {{ person.mother.name }}
+                                    </a>
+                                    <small class="d-block">母亲</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="tree-connector" style="height: 20px;"></div>
+                            {% endif %}
+
+                            <!-- 本人层 -->
+                            <div class="tree-node {% if person.gender == 'F' %}female{% endif %} mb-4">
+                                {{ person.get_full_name }}
+                                <small class="d-block">本人</small>
+                            </div>
+                            <div class="tree-connector" style="height: 20px;"></div>
+
+                            <!-- 配偶层 -->
+                            {% if spouse_relations %}
+                            <div class="d-flex justify-content-center mb-4">
+                                {% for relation in spouse_relations %}
+                                {% if person.gender == 'M' %}
+                                <div class="tree-node {% if relation.wife.gender == 'F' %}female{% endif %} {% if not forloop.first %}ml-4{% endif %}">
+                                    <a href="{{ relation.wife.get_absolute_url }}" style="color: white; text-decoration: none;">
+                                        {{ relation.wife.name }}
+                                    </a>
+                                    <small class="d-block">配偶</small>
+                                </div>
+                                {% else %}
+                                <div class="tree-node {% if relation.husband.gender == 'F' %}female{% endif %} {% if not forloop.first %}ml-4{% endif %}">
+                                    <a href="{{ relation.husband.get_absolute_url }}" style="color: white; text-decoration: none;">
+                                        {{ relation.husband.name }}
+                                    </a>
+                                    <small class="d-block">配偶</small>
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            <div class="tree-connector" style="height: 20px;"></div>
+                            {% endif %}
+
+                            <!-- 子女层 -->
+                            {% if children %}
+                            <div class="d-flex flex-wrap justify-content-center">
+                                {% for child in children %}
+                                <div class="tree-node {% if child.gender == 'F' %}female{% endif %} mb-2">
+                                    <a href="{{ child.get_absolute_url }}" style="color: white; text-decoration: none;">
+                                        {{ child.name }}
+                                    </a>
+                                    <small class="d-block">子女</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 时间轴视图 -->
+                        <div id="timeline-view" class="timeline-view" style="display: none;">
+                            <!-- 父母 -->
+                            {% if person.father %}
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <h6>父亲</h6>
+                                    <p class="mb-1">
+                                        <a href="{{ person.father.get_absolute_url }}">{{ person.father.name }}</a>
+                                        {% if person.father.courtesy_name %}
+                                        <small class="text-muted">（字{{ person.father.courtesy_name }}）</small>
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">第{{ person.father.generation.number }}世</small>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if person.mother %}
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <h6>母亲</h6>
+                                    <p class="mb-1">
+                                        <a href="{{ person.mother.get_absolute_url }}">{{ person.mother.name }}</a>
+                                        {% if person.mother.courtesy_name %}
+                                        <small class="text-muted">（字{{ person.mother.courtesy_name }}）</small>
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">第{{ person.mother.generation.number }}世</small>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- 本人 -->
+                            <div class="timeline-item">
+                                <div class="timeline-dot" style="background: var(--primary-color); width: 16px; height: 16px;"></div>
+                                <div class="timeline-content" style="border-left-color: var(--primary-color); background: rgba(139, 69, 19, 0.1);">
+                                    <h6>本人</h6>
+                                    <p class="mb-1">
+                                        {{ person.name }}
+                                        {% if person.courtesy_name %}
+                                        <small class="text-muted">（字{{ person.courtesy_name }}）</small>
+                                        {% endif %}
+                                        {% if person.art_name %}
+                                        <small class="text-muted">（号{{ person.art_name }}）</small>
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">第{{ person.generation.number }}世</small>
+                                    {% if person.birth_year or person.death_year %}
+                                    <p class="mb-0 mt-1">
+                                        {% if person.birth_year %}{{ person.birth_year }}年{% endif %}
+                                        {% if person.birth_year and person.death_year %} - {% endif %}
+                                        {% if person.death_year %}{{ person.death_year }}年{% endif %}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 配偶 -->
+                            {% for relation in spouse_relations %}
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <h6>配偶</h6>
+                                    {% if person.gender == 'M' %}
+                                    <p class="mb-1">
+                                        <a href="{{ relation.wife.get_absolute_url }}">{{ relation.wife.name }}</a>
+                                        {% if relation.wife.courtesy_name %}
+                                        <small class="text-muted">（字{{ relation.wife.courtesy_name }}）</small>
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">第{{ relation.wife.generation.number }}世</small>
+                                    {% else %}
+                                    <p class="mb-1">
+                                        <a href="{{ relation.husband.get_absolute_url }}">{{ relation.husband.name }}</a>
+                                        {% if relation.husband.courtesy_name %}
+                                        <small class="text-muted">（字{{ relation.husband.courtesy_name }}）</small>
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">第{{ relation.husband.generation.number }}世</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <!-- 子女 -->
+                            {% for child in children %}
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <h6>子女</h6>
+                                    <p class="mb-1">
+                                        <a href="{{ child.get_absolute_url }}">{{ child.name }}</a>
+                                        {% if child.courtesy_name %}
+                                        <small class="text-muted">（字{{ child.courtesy_name }}）</small>
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">第{{ child.generation.number }}世</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -292,6 +589,55 @@
                 </div>
             </div>
             {% endif %}
+
+            <!-- 图片和视频 -->
+            {% if person.images.all or person.videos.all %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-images me-2"></i>多媒体资料</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 图片 -->
+                    {% if person.images.all %}
+                    <h6 class="mb-3">照片</h6>
+                    <div class="row">
+                        {% for image in person.images.all %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <img src="{{ image.image.url }}" alt="{{ image.title }}" class="card-img-top" style="height: 150px; object-fit: cover;">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title mb-1">{{ image.title|default:"未命名" }}</h6>
+                                    {% if image.description %}
+                                    <p class="card-text text-sm">{{ image.description }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- 视频 -->
+                    {% if person.videos.all %}
+                    <h6 class="mb-3 mt-4">视频</h6>
+                    <div class="list-group">
+                        {% for video in person.videos.all %}
+                        <div class="list-group-item">
+                            <h6 class="mb-1">{{ video.title|default:"未命名" }}</h6>
+                            {% if video.description %}
+                            <p class="mb-2 text-sm">{{ video.description }}</p>
+                            {% endif %}
+                            <video controls class="w-100" style="max-height: 200px;">
+                                <source src="{{ video.video.url }}" type="video/mp4">
+                                您的浏览器不支持视频播放。
+                            </video>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- 右侧边栏 -->
@@ -337,4 +683,38 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+// 视图切换功能
+document.addEventListener('DOMContentLoaded', function() {
+    const treeViewBtn = document.getElementById('tree-view-btn');
+    const timelineViewBtn = document.getElementById('timeline-view-btn');
+    const treeView = document.getElementById('tree-view');
+    const timelineView = document.getElementById('timeline-view');
+
+    treeViewBtn.addEventListener('click', function() {
+        // 激活树状图视图
+        treeViewBtn.classList.remove('btn-outline-primary');
+        treeViewBtn.classList.add('btn-primary');
+        timelineViewBtn.classList.remove('btn-primary');
+        timelineViewBtn.classList.add('btn-outline-primary');
+        
+        treeView.style.display = 'block';
+        timelineView.style.display = 'none';
+    });
+
+    timelineViewBtn.addEventListener('click', function() {
+        // 激活时间轴视图
+        timelineViewBtn.classList.remove('btn-outline-primary');
+        timelineViewBtn.classList.add('btn-primary');
+        treeViewBtn.classList.remove('btn-primary');
+        treeViewBtn.classList.add('btn-outline-primary');
+        
+        timelineView.style.display = 'block';
+        treeView.style.display = 'none';
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}

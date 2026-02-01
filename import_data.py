@@ -1,562 +1,234 @@
+#!/usr/bin/env python3
 """
-族谱数据导入脚本
-根据两份族谱文档整理的数据
+族谱数据导入脚本 - 支持从Excel表格导入数据
 """
 import os
 import django
+import pandas as pd
 
+# 设置Django环境
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'liu_genealogy.settings')
 django.setup()
 
 from genealogy.models import Generation, Branch, Person, SpouseRelation
 
-
-def create_generations():
-    """创建世代"""
-    print("创建世代...")
-    for i in range(1, 20):
-        Generation.objects.get_or_create(
-            number=i,
-            defaults={'name': f'第{i}世'}
-        )
-    print(f"创建了 {Generation.objects.count()} 个世代")
-
-
-def create_branches():
-    """创建支系"""
-    print("创建支系...")
-    branches_data = [
-        {
-            'name': '法海公支系',
-            'location': '梅县凤坑、田福村',
-            'description': '法海公后裔，主要居住在梅县凤坑、田福村、井下、崩田角、大角山等地'
-        },
-        {
-            'name': '淮海公支系',
-            'location': '平远东石',
-            'description': '淮海公后裔，主要居住在平远东石明洋陂下、河头象牙村、热柘下黄地等地'
-        },
-        {
-            'name': '得成公支系',
-            'location': '梅县水南坝',
-            'description': '得成公后裔，原住梅县水南坝，后裔分迁长沙、扶贵、丙村、潮州、广西、江西等地'
-        },
-        {
-            'name': '沧海公支系',
-            'location': '平远茅寮坪',
-            'description': '沧海公后裔，分平远茅寮坪、小柘下黄塘开基'
-        },
-        {
-            'name': '千一公支系',
-            'location': '蕉岭县凤岭',
-            'description': '千一公后裔，分蕉岭县凤岭开基'
-        },
-        {
-            'name': '满海公支系',
-            'location': '平远各地',
-            'description': '满海公后裔，外迁平远热柘小柘开基，西山下田心、茅坪石角陂、坝头樟演等地'
-        },
-    ]
-    
-    for data in branches_data:
-        Branch.objects.get_or_create(
-            name=data['name'],
-            defaults={
-                'location': data['location'],
-                'description': data['description']
-            }
-        )
-    print(f"创建了 {Branch.objects.count()} 个支系")
-
-
-def create_first_ancestor():
-    """创建一世祖乾正公"""
-    print("创建一世祖...")
-    gen1 = Generation.objects.get(number=1)
-    
-    # 创建乾正公
-    qianzheng, _ = Person.objects.get_or_create(
-        name='乾正公',
-        defaults={
-            'generation': gen1,
-            'courtesy_name': '法教',
-            'art_name': '三十七郎、文昌',
-            'gender': 'M',
-            'biography': '法教公号乾正、三十七郎，又字文昌。祖于元朝徙居嘉应州水南坝，后住凤坑，殁于凤坑，葬于凤坑。',
-            'burial_place': '凤坑土名乌坑里张屋后',
-            'burial_fengshui': '乌鸦落洋形',
-            'burial_direction': '辛山乙向',
-            'order': 1
-        }
-    )
-    
-    # 创建陈氏妣
-    chen, _ = Person.objects.get_or_create(
-        name='陈氏',
-        defaults={
-            'generation': gen1,
-            'gender': 'F',
-            'biography': '乾正公妣陈氏',
-            'burial_place': '平远小柘天弓岌',
-            'burial_fengshui': '眼镜形（又名天平对针形）',
-            'order': 2
-        }
-    )
-    
-    # 创建配偶关系
-    SpouseRelation.objects.get_or_create(
-        husband=qianzheng,
-        wife=chen,
-        defaults={'order': 1}
-    )
-    
-    print(f"一世祖: {qianzheng.name}")
-    return qianzheng
-
-
-def create_second_generation(qianzheng):
-    """创建二世祖（六子）"""
-    print("创建二世祖（六子）...")
-    gen2 = Generation.objects.get(number=2)
-    
-    # 获取支系
-    fahai_branch = Branch.objects.get(name='法海公支系')
-    huaihai_branch = Branch.objects.get(name='淮海公支系')
-    decheng_branch = Branch.objects.get(name='得成公支系')
-    canghai_branch = Branch.objects.get(name='沧海公支系')
-    qianyi_branch = Branch.objects.get(name='千一公支系')
-    manhai_branch = Branch.objects.get(name='满海公支系')
-    
-    sons_data = [
-        {
-            'name': '法海公',
-            'branch': fahai_branch,
-            'spouse': '徐氏七娘',
-            'spouse2': '徐氏八娘',
-            'order': 1
-        },
-        {
-            'name': '淮海公',
-            'branch': huaihai_branch,
-            'spouse': '宋氏',
-            'order': 2
-        },
-        {
-            'name': '得成公',
-            'branch': decheng_branch,
-            'spouse': '罗氏',
-            'order': 3
-        },
-        {
-            'name': '沧海公',
-            'branch': canghai_branch,
-            'spouse': '凌氏',
-            'order': 4
-        },
-        {
-            'name': '千一公',
-            'branch': qianyi_branch,
-            'spouse': '陈氏',
-            'order': 5
-        },
-        {
-            'name': '满海公',
-            'branch': manhai_branch,
-            'spouse': '朱氏',
-            'spouse2': '陈氏',
-            'order': 6
-        },
-    ]
-    
-    for data in sons_data:
-        # 创建儿子
-        son, _ = Person.objects.get_or_create(
-            name=data['name'],
-            defaults={
-                'generation': gen2,
-                'gender': 'M',
-                'father': qianzheng,
-                'branch': data['branch'],
-                'order': data['order']
-            }
-        )
-        
-        # 创建配偶
-        if 'spouse' in data:
-            spouse, _ = Person.objects.get_or_create(
-                name=data['spouse'],
+def import_generations_from_excel(excel_file):
+    """从Excel导入世代数据"""
+    print("导入世代数据...")
+    try:
+        df = pd.read_excel(excel_file, sheet_name='世代')
+        for _, row in df.iterrows():
+            number = int(row['世代数'])
+            name = str(row['世代名称']) if pd.notna(row['世代名称']) else f'第{number}世'
+            generation_char = str(row['辈份字']) if pd.notna(row['辈份字']) else ''
+            
+            Generation.objects.get_or_create(
+                number=number,
                 defaults={
-                    'generation': gen2,
-                    'gender': 'F',
-                    'order': data['order'] + 100
+                    'name': name,
+                    'generation_char': generation_char
                 }
             )
-            SpouseRelation.objects.get_or_create(
-                husband=son,
-                wife=spouse,
-                defaults={'order': 1}
-            )
+        print(f"✅ 成功导入 {Generation.objects.count()} 个世代")
+    except Exception as e:
+        print(f"❌ 导入世代数据失败: {e}")
+
+def import_persons_from_excel(excel_file):
+    """从Excel导入人物数据"""
+    print("导入人物数据...")
+    try:
+        df = pd.read_excel(excel_file, sheet_name='人物')
+        person_mapping = {}
         
-        if 'spouse2' in data:
-            spouse2, _ = Person.objects.get_or_create(
-                name=data['spouse2'],
+        # 先创建所有人物，不设置关系
+        for _, row in df.iterrows():
+            name = str(row['姓名']) if pd.notna(row['姓名']) else ''
+            if not name:
+                continue
+            
+            courtesy_name = str(row['字']) if pd.notna(row['字']) else ''
+            art_name = str(row['号']) if pd.notna(row['号']) else ''
+            alias = str(row['别名']) if pd.notna(row['别名']) else ''
+            gender = str(row['性别']) if pd.notna(row['性别']) else 'M'
+            gender = 'M' if gender == '男' else 'F'
+            
+            generation_number = int(row['世代数']) if pd.notna(row['世代数']) else 1
+            generation = Generation.objects.get_or_create(number=generation_number)[0]
+            
+            birth_year = int(row['出生年份']) if pd.notna(row['出生年份']) else None
+            death_year = int(row['逝世年份']) if pd.notna(row['逝世年份']) else None
+            birth_place = str(row['出生地']) if pd.notna(row['出生地']) else ''
+            branch_name = str(row['所属支系']) if pd.notna(row['所属支系']) else ''
+            biography = str(row['生平简介']) if pd.notna(row['生平简介']) else ''
+            achievements = str(row['主要事迹']) if pd.notna(row['主要事迹']) else ''
+            descendants_location = str(row['后裔分布']) if pd.notna(row['后裔分布']) else ''
+            burial_place = str(row['葬地']) if pd.notna(row['葬地']) else ''
+            burial_fengshui = str(row['墓形/风水']) if pd.notna(row['墓形/风水']) else ''
+            burial_direction = str(row['坐向']) if pd.notna(row['坐向']) else ''
+            notes = str(row['备注']) if pd.notna(row['备注']) else ''
+            order = int(row['排序']) if pd.notna(row['排序']) else 0
+            
+            # 获取或创建支系
+            branch = None
+            if branch_name:
+                branch, _ = Branch.objects.get_or_create(
+                    name=branch_name,
+                    defaults={'description': f'{branch_name}支系'}
+                )
+            
+            # 创建人物
+            person, _ = Person.objects.get_or_create(
+                name=name,
                 defaults={
-                    'generation': gen2,
-                    'gender': 'F',
-                    'order': data['order'] + 200
+                    'generation': generation,
+                    'courtesy_name': courtesy_name,
+                    'art_name': art_name,
+                    'alias': alias,
+                    'gender': gender,
+                    'branch': branch,
+                    'birth_year': birth_year,
+                    'death_year': death_year,
+                    'birth_place': birth_place,
+                    'biography': biography,
+                    'achievements': achievements,
+                    'descendants_location': descendants_location,
+                    'burial_place': burial_place,
+                    'burial_fengshui': burial_fengshui,
+                    'burial_direction': burial_direction,
+                    'notes': notes,
+                    'order': order
                 }
             )
-            SpouseRelation.objects.get_or_create(
-                husband=son,
-                wife=spouse2,
-                defaults={'order': 2}
-            )
+            person_mapping[name] = person
         
-        print(f"  创建: {son.name}")
-    
-    print(f"二世祖共 {Person.objects.filter(generation=gen2, gender='M').count()} 人")
+        # 然后设置父子关系
+        print("设置人物关系...")
+        df = pd.read_excel(excel_file, sheet_name='人物')
+        for _, row in df.iterrows():
+            name = str(row['姓名']) if pd.notna(row['姓名']) else ''
+            if not name or name not in person_mapping:
+                continue
+            
+            person = person_mapping[name]
+            
+            # 设置父亲
+            father_name = str(row['父亲姓名']) if pd.notna(row['父亲姓名']) else ''
+            if father_name and father_name in person_mapping:
+                person.father = person_mapping[father_name]
+            
+            # 设置母亲
+            mother_name = str(row['母亲姓名']) if pd.notna(row['母亲姓名']) else ''
+            if mother_name and mother_name in person_mapping:
+                person.mother = person_mapping[mother_name]
+            
+            person.save()
+        
+        print(f"✅ 成功导入 {Person.objects.count()} 个人物")
+    except Exception as e:
+        print(f"❌ 导入人物数据失败: {e}")
 
+def import_spouse_relations_from_excel(excel_file):
+    """从Excel导入配偶关系数据"""
+    print("导入配偶关系数据...")
+    try:
+        df = pd.read_excel(excel_file, sheet_name='配偶关系')
+        person_mapping = {}
+        
+        # 构建人物映射
+        for person in Person.objects.all():
+            person_mapping[person.name] = person
+        
+        # 创建配偶关系
+        for _, row in df.iterrows():
+            husband_name = str(row['丈夫姓名']) if pd.notna(row['丈夫姓名']) else ''
+            wife_name = str(row['妻子姓名']) if pd.notna(row['妻子姓名']) else ''
+            order = int(row['排序']) if pd.notna(row['排序']) else 1
+            
+            if husband_name and wife_name and husband_name in person_mapping and wife_name in person_mapping:
+                husband = person_mapping[husband_name]
+                wife = person_mapping[wife_name]
+                
+                SpouseRelation.objects.get_or_create(
+                    husband=husband,
+                    wife=wife,
+                    defaults={'order': order}
+                )
+        
+        print(f"✅ 成功导入 {SpouseRelation.objects.count()} 个配偶关系")
+    except Exception as e:
+        print(f"❌ 导入配偶关系数据失败: {e}")
 
-def create_third_generation():
-    """创建三世祖"""
-    print("创建三世祖...")
-    gen3 = Generation.objects.get(number=3)
-    gen2 = Generation.objects.get(number=2)
-    
-    # 法海公的儿子们
-    fahai = Person.objects.get(name='法海公', generation=gen2)
-    
-    # 法聪公
-    facong, _ = Person.objects.get_or_create(
-        name='法聪公',
-        defaults={
-            'generation': gen3,
-            'gender': 'M',
-            'father': fahai,
-            'branch': fahai.branch,
-            'order': 1
-        }
-    )
-    
-    # 创建法聪公的配偶姚氏
-    yao, _ = Person.objects.get_or_create(
-        name='姚氏',
-        defaults={
-            'generation': gen3,
-            'gender': 'F',
-            'order': 101
-        }
-    )
-    SpouseRelation.objects.get_or_create(
-        husband=facong,
-        wife=yao,
-        defaults={'order': 1}
-    )
-    
-    # 淮海公的儿子们
-    huaihai = Person.objects.get(name='淮海公', generation=gen2)
-    
-    # 千一郎公
-    qianyilang, _ = Person.objects.get_or_create(
-        name='千一郎公',
-        defaults={
-            'generation': gen3,
-            'gender': 'M',
-            'father': huaihai,
-            'branch': huaihai.branch,
-            'order': 2
-        }
-    )
-    
-    # 刘荫公
-    liuyin, _ = Person.objects.get_or_create(
-        name='刘荫公',
-        defaults={
-            'generation': gen3,
-            'gender': 'M',
-            'father': huaihai,
-            'branch': huaihai.branch,
-            'biography': '景泰进士，刑部主事',
-            'order': 3
-        }
-    )
-    
-    # 得成公的儿子们
-    decheng = Person.objects.get(name='得成公', generation=gen2)
-    
-    # 文通公
-    wentong, _ = Person.objects.get_or_create(
-        name='文通公',
-        defaults={
-            'generation': gen3,
-            'gender': 'M',
-            'father': decheng,
-            'branch': decheng.branch,
-            'order': 4
-        }
-    )
-    
-    # 文聪公
-    wencong, _ = Person.objects.get_or_create(
-        name='文聪公',
-        defaults={
-            'generation': gen3,
-            'gender': 'M',
-            'father': decheng,
-            'branch': decheng.branch,
-            'order': 5
-        }
-    )
-    
-    # 千一公的儿子
-    qianyi = Person.objects.get(name='千一公', generation=gen2)
-    
-    # 永通公
-    yongtong, _ = Person.objects.get_or_create(
-        name='永通公',
-        defaults={
-            'generation': gen3,
-            'gender': 'M',
-            'father': qianyi,
-            'branch': qianyi.branch,
-            'descendants_location': '后裔分迁蕉岭县凤岭开基',
-            'order': 6
-        }
-    )
-    
-    # 满海公的儿子们
-    manhai = Person.objects.get(name='满海公', generation=gen2)
-    
-    # 永端公、永正公、永敬公、文英公、文援公
-    manhai_sons = [
-        {'name': '永端公', 'order': 7},
-        {'name': '永正公', 'order': 8},
-        {'name': '永敬公', 'order': 9},
-        {'name': '文英公', 'order': 10},
-        {'name': '文援公', 'order': 11},
-    ]
-    
-    for data in manhai_sons:
-        Person.objects.get_or_create(
-            name=data['name'],
-            defaults={
-                'generation': gen3,
-                'gender': 'M',
-                'father': manhai,
-                'branch': manhai.branch,
-                'order': data['order']
-            }
-        )
-    
-    print(f"三世祖共 {Person.objects.filter(generation=gen3, gender='M').count()} 人")
-
-
-def create_fourth_generation():
-    """创建四世祖 - 法聪公的儿子们"""
-    print("创建四世祖...")
-    gen4 = Generation.objects.get(number=4)
-    gen3 = Generation.objects.get(number=3)
-    
-    facong = Person.objects.get(name='法聪公', generation=gen3)
-    
-    # 法聪公的五个儿子
-    sons = [
-        {'name': '忡瑛公（法行）', 'order': 1},
-        {'name': '忡瑞公', 'order': 2},
-        {'name': '忡瑄公（法瑄）', 'order': 3},
-        {'name': '忡渊公', 'order': 4},
-        {'name': '忡璵公', 'order': 5},
-    ]
-    
-    for data in sons:
-        Person.objects.get_or_create(
-            name=data['name'],
-            defaults={
-                'generation': gen4,
-                'gender': 'M',
-                'father': facong,
-                'branch': facong.branch,
-                'order': data['order']
-            }
-        )
-    
-    print(f"四世祖共 {Person.objects.filter(generation=gen4, gender='M').count()} 人")
-
-
-def create_fifth_generation():
-    """创建五世祖 - 法行公的儿子们"""
-    print("创建五世祖...")
-    gen5 = Generation.objects.get(number=5)
-    gen4 = Generation.objects.get(number=4)
-    
-    # 法行公的儿子们
-    faxing = Person.objects.get(name='忡瑛公（法行）', generation=gen4)
-    
-    # 法宽公、法猷公
-    sons = [
-        {'name': '法宽公', 'order': 1},
-        {'name': '法猷公', 'order': 2},
-    ]
-    
-    for data in sons:
-        Person.objects.get_or_create(
-            name=data['name'],
-            defaults={
-                'generation': gen5,
-                'gender': 'M',
-                'father': faxing,
-                'branch': faxing.branch,
-                'order': data['order']
-            }
-        )
-    
-    print(f"五世祖共 {Person.objects.filter(generation=gen5, gender='M').count()} 人")
-
-
-def create_sixth_generation():
-    """创建六世祖 - 法宽公的儿子们"""
-    print("创建六世祖...")
-    gen6 = Generation.objects.get(number=6)
-    gen5 = Generation.objects.get(number=5)
-    
-    # 法宽公的儿子们
-    fakuan = Person.objects.get(name='法宽公', generation=gen5)
-    
-    # 刘辉公、德立公
-    sons = [
-        {
-            'name': '刘辉公',
-            'order': 1,
-            'descendants_location': '后裔安居梅西田福杨梅树下乾正公祖屋'
-        },
-        {
-            'name': '德立公（刘鸾）',
-            'order': 2,
-            'descendants_location': '后裔汝永公迁住金山月梅草塘等外地'
-        },
-    ]
-    
-    for data in sons:
-        Person.objects.get_or_create(
-            name=data['name'],
-            defaults={
-                'generation': gen6,
-                'gender': 'M',
-                'father': fakuan,
-                'branch': fakuan.branch,
-                'descendants_location': data['descendants_location'],
-                'order': data['order']
-            }
-        )
-    
-    # 法猷公的儿子们
-    fayou = Person.objects.get(name='法猷公', generation=gen5)
-    
-    # 创建法猷公的八个儿子
-    fayou_sons = [
-        '刘琮公', '刘珍公（玲）', '刘璋公（法高）', '刘瑄公',
-        '刘璉公（法璉）', '刘玘公', '刘瑀公（法瑀）', '刘珦公（法珦）'
-    ]
-    
-    for i, name in enumerate(fayou_sons, start=3):
-        Person.objects.get_or_create(
-            name=name,
-            defaults={
-                'generation': gen6,
-                'gender': 'M',
-                'father': fayou,
-                'branch': fayou.branch,
-                'order': i
-            }
-        )
-    
-    print(f"六世祖共 {Person.objects.filter(generation=gen6, gender='M').count()} 人")
-
-
-def create_seventh_generation():
-    """创建七世祖"""
-    print("创建七世祖...")
-    gen7 = Generation.objects.get(number=7)
-    gen6 = Generation.objects.get(number=6)
-    
-    # 德立公的儿子 - 承创公
-    deli = Person.objects.get(name='德立公（刘鸾）', generation=gen6)
-    
-    Person.objects.get_or_create(
-        name='承创公',
-        defaults={
-            'generation': gen7,
-            'gender': 'M',
-            'father': deli,
-            'branch': deli.branch,
-            'descendants_location': '后裔汝永公迁住金山月梅草塘等外地',
-            'order': 1
-        }
-    )
-    
-    print(f"七世祖共 {Person.objects.filter(generation=gen7, gender='M').count()} 人")
-
-
-def update_branch_founders():
-    """更新支系开基祖"""
-    print("更新支系开基祖...")
-    
-    gen2 = Generation.objects.get(number=2)
-    
-    # 更新各支系的开基祖
-    branch_founder_mapping = {
-        '法海公支系': '法海公',
-        '淮海公支系': '淮海公',
-        '得成公支系': '得成公',
-        '沧海公支系': '沧海公',
-        '千一公支系': '千一公',
-        '满海公支系': '满海公',
-    }
-    
-    for branch_name, founder_name in branch_founder_mapping.items():
-        try:
-            branch = Branch.objects.get(name=branch_name)
-            founder = Person.objects.get(name=founder_name, generation=gen2)
-            branch.founder = founder
-            branch.save()
-            print(f"  {branch_name} -> {founder_name}")
-        except (Branch.DoesNotExist, Person.DoesNotExist):
-            print(f"  跳过: {branch_name}")
-
-
-def main():
-    """主函数"""
-    print("=" * 50)
-    print("开始导入族谱数据")
-    print("=" * 50)
+def import_data_from_excel(excel_file):
+    """从Excel导入所有数据"""
+    print(f"从Excel文件导入数据: {excel_file}")
     
     # 清空现有数据
-    print("\n清空现有数据...")
+    print("清空现有数据...")
     SpouseRelation.objects.all().delete()
     Person.objects.all().delete()
     Branch.objects.all().delete()
     Generation.objects.all().delete()
     
-    # 创建数据
-    create_generations()
-    create_branches()
-    qianzheng = create_first_ancestor()
-    create_second_generation(qianzheng)
-    create_third_generation()
-    create_fourth_generation()
-    create_fifth_generation()
-    create_sixth_generation()
-    create_seventh_generation()
-    update_branch_founders()
+    # 导入数据
+    import_generations_from_excel(excel_file)
+    import_persons_from_excel(excel_file)
+    import_spouse_relations_from_excel(excel_file)
     
-    print("\n" + "=" * 50)
-    print("数据导入完成！")
-    print("=" * 50)
-    print(f"\n统计:")
+    print("\n数据导入完成！")
+    print(f"统计:")
     print(f"  世代: {Generation.objects.count()}")
     print(f"  支系: {Branch.objects.count()}")
     print(f"  人物: {Person.objects.count()}")
     print(f"  配偶关系: {SpouseRelation.objects.count()}")
+
+def create_default_data():
+    """创建默认数据（当没有Excel文件时使用）"""
+    print("创建默认数据...")
+    
+    # 创建世代
+    for i in range(1, 21):
+        Generation.objects.get_or_create(
+            number=i,
+            defaults={'name': f'第{i}世'}
+        )
+    
+    # 创建支系
+    branches_data = [
+        {'name': '法海公支系', 'location': '梅县凤坑、田福村', 'description': '法海公后裔'},  
+        {'name': '淮海公支系', 'location': '平远东石', 'description': '淮海公后裔'},
+        {'name': '得成公支系', 'location': '梅县水南坝', 'description': '得成公后裔'},
+        {'name': '沧海公支系', 'location': '平远茅寮坪', 'description': '沧海公后裔'},
+        {'name': '千一公支系', 'location': '蕉岭县凤岭', 'description': '千一公后裔'},
+        {'name': '满海公支系', 'location': '平远各地', 'description': '满海公后裔'},
+    ]
+    
+    for data in branches_data:
+        Branch.objects.get_or_create(
+            name=data['name'],
+            defaults={'location': data['location'], 'description': data['description']}
+        )
+    
+    print("默认数据创建完成！")
+
+def main():
+    """主函数"""
+    print("=" * 50)
+    print("族谱数据导入工具")
+    print("=" * 50)
+    
+    excel_file = 'genealogy_data.xlsx'
+    
+    if os.path.exists(excel_file):
+        print(f"找到Excel文件: {excel_file}")
+        import_data_from_excel(excel_file)
+    else:
+        print(f"未找到Excel文件: {excel_file}")
+        print("请先填写 genealogy_template.xlsx 并保存为 genealogy_data.xlsx")
+        create_default_data()
+    
+    print("\n" + "=" * 50)
+    print("操作完成！")
+    print("=" * 50)
 
 
 if __name__ == '__main__':

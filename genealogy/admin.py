@@ -2,13 +2,14 @@
 刘氏乾正公族谱 - 后台管理配置
 """
 from django.contrib import admin
-from .models import Generation, Branch, Person, SpouseRelation, GenealogyRecord, UserProfile
+from .models import Generation, Branch, Person, SpouseRelation, GenealogyRecord, UserProfile, PersonImage, PersonVideo
 
 
 @admin.register(Generation)
 class GenerationAdmin(admin.ModelAdmin):
-    list_display = ['number', 'name', 'description']
-    ordering = ['number']
+    list_display = ['number', 'is_spouse', 'name', 'description']
+    list_filter = ['is_spouse']
+    ordering = ['number', 'is_spouse']
     search_fields = ['name', 'description']
 
 
@@ -19,9 +20,24 @@ class BranchAdmin(admin.ModelAdmin):
     filter_horizontal = []
 
 
-class SpouseRelationInline(admin.TabularInline):
+class HusbandSpouseRelationInline(admin.TabularInline):
     model = SpouseRelation
     fk_name = 'husband'
+    extra = 1
+
+class WifeSpouseRelationInline(admin.TabularInline):
+    model = SpouseRelation
+    fk_name = 'wife'
+    extra = 1
+
+
+class PersonImageInline(admin.TabularInline):
+    model = PersonImage
+    extra = 1
+
+
+class PersonVideoInline(admin.TabularInline):
+    model = PersonVideo
     extra = 1
 
 
@@ -33,10 +49,12 @@ class PersonAdmin(admin.ModelAdmin):
         'art_name',
         'generation',
         'gender',
+        'is_outsider',
         'father',
         'birth_year',
         'death_year',
         'branch',
+        'has_avatar',
     ]
     list_filter = [
         'generation__number',
@@ -53,7 +71,20 @@ class PersonAdmin(admin.ModelAdmin):
         'notes',
     ]
     raw_id_fields = ['father', 'mother']
-    inlines = [SpouseRelationInline]
+    
+    def get_inlines(self, request, obj=None):
+        # 根据当前人物的性别动态选择inline
+        inlines = []
+        if obj:
+            if obj.gender == 'F':
+                inlines.append(WifeSpouseRelationInline)
+            else:
+                inlines.append(HusbandSpouseRelationInline)
+        else:
+            # 新建时默认使用丈夫关系
+            inlines.append(HusbandSpouseRelationInline)
+        inlines.extend([PersonImageInline, PersonVideoInline])
+        return inlines
     fieldsets = (
         ('基本信息', {
             'fields': (
@@ -62,6 +93,7 @@ class PersonAdmin(admin.ModelAdmin):
                 'art_name',
                 'alias',
                 'gender',
+                'is_outsider',
                 'generation',
             )
         }),
@@ -95,6 +127,12 @@ class PersonAdmin(admin.ModelAdmin):
             ),
             'classes': ('collapse',)
         }),
+        ('多媒体信息', {
+            'fields': (
+                'avatar',
+            ),
+            'classes': ('collapse',)
+        }),
         ('其他', {
             'fields': (
                 'notes',
@@ -103,13 +141,41 @@ class PersonAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'generation':
+            # 获取当前表单的is_outsider值
+            # 从request.POST中获取，或者从instance中获取
+            is_outsider = False
+            
+            # 尝试从POST数据中获取
+            if 'is_outsider' in request.POST:
+                is_outsider = request.POST.get('is_outsider') == 'on'
+            # 尝试从instance中获取（编辑模式）
+            elif hasattr(self, 'obj') and self.obj:
+                is_outsider = self.obj.is_outsider
+            
+            # 根据is_outsider过滤世代
+            kwargs['queryset'] = Generation.objects.filter(is_spouse=is_outsider)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+    def get_form(self, request, obj=None, **kwargs):
+        # 保存当前实例，供formfield_for_foreignkey使用
+        self.obj = obj
+        return super().get_form(request, obj, **kwargs)
+    
+    class Media:
+        js = (
+            'https://code.jquery.com/jquery-3.6.0.min.js',
+            'genealogy/js/dynamic_generation.js',
+        )
 
 
 @admin.register(SpouseRelation)
 class SpouseRelationAdmin(admin.ModelAdmin):
-    list_display = ['husband', 'wife', 'order']
-    list_filter = ['order']
-    search_fields = ['husband__name', 'wife__name']
+    list_display = ['husband', 'wife', 'relation_type', 'source_info', 'order']
+    list_filter = ['relation_type', 'order']
+    search_fields = ['husband__name', 'wife__name', 'source_info']
 
 
 @admin.register(GenealogyRecord)
@@ -117,6 +183,20 @@ class GenealogyRecordAdmin(admin.ModelAdmin):
     list_display = ['title', 'source', 'page_number']
     search_fields = ['title', 'content', 'source']
     filter_horizontal = ['related_persons']
+
+
+@admin.register(PersonImage)
+class PersonImageAdmin(admin.ModelAdmin):
+    list_display = ['person', 'title', 'upload_date']
+    search_fields = ['person__name', 'title', 'description']
+    list_filter = ['person__generation', 'upload_date']
+
+
+@admin.register(PersonVideo)
+class PersonVideoAdmin(admin.ModelAdmin):
+    list_display = ['person', 'title', 'upload_date']
+    search_fields = ['person__name', 'title', 'description']
+    list_filter = ['person__generation', 'upload_date']
 
 
 @admin.register(UserProfile)

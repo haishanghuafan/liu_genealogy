@@ -57,4 +57,10 @@ urlpatterns = [
     
     # 用户资料
     path('profile/', views.ProfileView.as_view(), name='profile'),
+    
+    # 编辑人物信息
+    path('person/<int:pk>/edit/', views.PersonEditView.as_view(), name='person_edit'),
+    
+    # 获取世代选项（用于AJAX请求）
+    path('get_generations/', views.get_generations, name='get_generations'),
 ]

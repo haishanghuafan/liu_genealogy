@@ -14,6 +14,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
 from django.core.paginator import Paginator
 from .models import Person, Generation, Branch, SpouseRelation, UserProfile
+from .permissions import PersonOwnerMixin
 
 
 class HomeView(TemplateView):
@@ -111,7 +112,9 @@ class PersonDetailView(DetailView):
             'husband_relations',
             'wife_relations',
             'children_as_father',
-            'children_as_mother'
+            'children_as_mother',
+            'images',
+            'videos'
         )
     
     def get_context_data(self, **kwargs):
@@ -244,7 +247,52 @@ class ProfileView(LoginRequiredMixin, View):
     
     def get(self, request):
         profile, created = UserProfile.objects.get_or_create(user=request.user)
+        # 获取用户关联的人物
+        related_person = None
+        if hasattr(request.user, 'related_person'):
+            related_person = request.user.related_person
+        elif profile.related_person:
+            related_person = profile.related_person
+        
         return render(request, self.template_name, {
             'profile': profile,
             'user': request.user,
+            'related_person': related_person,
         })
+
+
+class PersonEditView(PersonOwnerMixin, View):
+    """用户编辑自己关联的人物信息"""
+    template_name = 'genealogy/person_edit.html'
+    
+    def get(self, request, pk):
+        person = get_object_or_404(Person, pk=pk)
+        return render(request, self.template_name, {
+            'person': person,
+        })
+    
+    def post(self, request, pk):
+        person = get_object_or_404(Person, pk=pk)
+        # 这里可以添加表单处理逻辑
+        # 只允许编辑个人信息，不允许编辑父母、子女等关系
+        return redirect('genealogy:person_detail', pk=pk)
+
+
+def get_generations(request):
+    """获取世代选项（用于AJAX请求）"""
+    from django.http import JsonResponse
+    
+    is_outsider = request.GET.get('is_outsider', 'false') == 'true'
+    
+    # 获取对应的世代选项
+    generations = Generation.objects.filter(is_spouse=is_outsider).order_by('number', 'is_spouse')
+    
+    # 构建响应数据
+    generations_data = []
+    for gen in generations:
+        generations_data.append({
+            'id': gen.id,
+            'name': str(gen)
+        })
+    
+    return JsonResponse({'generations': generations_data})

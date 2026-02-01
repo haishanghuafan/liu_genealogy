@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}编辑人物信息 - {{ person.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'genealogy:home' %}">首页</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'genealogy:person_list' %}">人物</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'genealogy:person_detail' person.pk %}">{{ person.get_full_name }}</a></li>
+        <li class="breadcrumb-item active">编辑信息</li>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-pencil-square me-2"></i>编辑人物信息</h3>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <!-- 这里可以添加表单字段 -->
+                <!-- 只允许编辑个人信息，不允许编辑父母、子女等关系 -->
+                
+                <div class="form-group mb-3">
+                    <label for="name">姓名</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ person.name }}">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="courtesy_name">字</label>
+                    <input type="text" class="form-control" id="courtesy_name" name="courtesy_name" value="{{ person.courtesy_name }}">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="art_name">号</label>
+                    <input type="text" class="form-control" id="art_name" name="art_name" value="{{ person.art_name }}">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="alias">别名</label>
+                    <input type="text" class="form-control" id="alias" name="alias" value="{{ person.alias }}">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="birth_year">出生年份</label>
+                    <input type="number" class="form-control" id="birth_year" name="birth_year" value="{{ person.birth_year }}">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="death_year">逝世年份</label>
+                    <input type="number" class="form-control" id="death_year" name="death_year" value="{{ person.death_year }}">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="birth_place">出生地</label>
+                    <input type="text" class="form-control" id="birth_place" name="birth_place" value="{{ person.birth_place }}">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="biography">生平简介</label>
+                    <textarea class="form-control" id="biography" name="biography" rows="4">{{ person.biography }}</textarea>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="achievements">主要事迹</label>
+                    <textarea class="form-control" id="achievements" name="achievements" rows="3">{{ person.achievements }}</textarea>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="notes">备注</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2">{{ person.notes }}</textarea>
+                </div>
+                
+                <div class="form-group mb-4">
+                    <label for="descendants_location">后裔分布</label>
+                    <textarea class="form-control" id="descendants_location" name="descendants_location" rows="3">{{ person.descendants_location }}</textarea>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'genealogy:person_detail' person.pk %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>返回详情
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>保存修改
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
