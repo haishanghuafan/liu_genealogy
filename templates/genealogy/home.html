@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}刘氏乾正公族谱 - 首页{% endblock %}
+
+{% block content %}
+<!-- 首页横幅 -->
+<div class="page-header">
+    <div class="container text-center">
+        <h1 class="display-4 serif mb-3">刘氏乾正公族谱</h1>
+        <p class="lead">广东省梅州市梅县梅西田福</p>
+        <p class="mb-4">根据田福宗亲收藏本及梅县刘氏族谱整理</p>
+        
+        <!-- 搜索框 -->
+        <div class="search-box mt-4">
+            <form action="{% url 'genealogy:search' %}" method="get">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control form-control-lg" 
+                           placeholder="搜索姓名、字号、事迹..." required>
+                    <button class="btn btn-light" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- 统计数据 -->
+    <div class="row mb-5">
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <i class="bi bi-people-fill"></i>
+                <div class="number">{{ total_persons }}</div>
+                <div class="label">族谱人物</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <i class="bi bi-layers-fill"></i>
+                <div class="number">{{ total_generations }}</div>
+                <div class="label">世代传承</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <i class="bi bi-diagram-2-fill"></i>
+                <div class="number">{{ total_branches }}</div>
+                <div class="label">家族支系</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 始祖介绍 -->
+    {% if first_ancestor %}
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="serif mb-3">
+                                <i class="bi bi-star-fill text-warning me-2"></i>
+                                一世祖：{{ first_ancestor.name }}
+                            </h2>
+                            <p class="lead">{{ first_ancestor.courtesy_name }} {{ first_ancestor.art_name }}</p>
+                            <p>{{ first_ancestor.biography|default:"法教公号乾正、三十七郎，又字文昌。祖于元朝徙居嘉应州水南坝，后住凤坑，殁于凤坑，葬于凤坑。" }}</p>
+                            <a href="{{ first_ancestor.get_absolute_url }}" class="btn btn-primary">
+                                <i class="bi bi-person-lines-fill me-2"></i>查看详情
+                            </a>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="p-4 bg-light rounded">
+                                <i class="bi bi-person-badge" style="font-size: 5rem; color: var(--primary-color);"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 快速导航 -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3 class="serif mb-4 text-center">快速导航</h3>
+        </div>
+        <div class="col-md-3 mb-3">
+            <a href="{% url 'genealogy:tree' %}" class="card text-decoration-none h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-diagram-3" style="font-size: 3rem; color: var(--primary-color);"></i>
+                    <h5 class="card-title mt-3">世系图</h5>
+                    <p class="card-text text-muted">查看家族传承关系图</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3 mb-3">
+            <a href="{% url 'genealogy:person_list' %}" class="card text-decoration-none h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people" style="font-size: 3rem; color: var(--primary-color);"></i>
+                    <h5 class="card-title mt-3">人物列表</h5>
+                    <p class="card-text text-muted">浏览所有族谱人物</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3 mb-3">
+            <a href="{% url 'genealogy:branch_list' %}" class="card text-decoration-none h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-diagram-2" style="font-size: 3rem; color: var(--primary-color);"></i>
+                    <h5 class="card-title mt-3">家族支系</h5>
+                    <p class="card-text text-muted">了解各支系分布</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3 mb-3">
+            <a href="{% url 'genealogy:search' %}" class="card text-decoration-none h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-search" style="font-size: 3rem; color: var(--primary-color);"></i>
+                    <h5 class="card-title mt-3">搜索</h5>
+                    <p class="card-text text-muted">查找特定人物</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- 最近更新 -->
+    {% if recent_persons %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>最近更新</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for person in recent_persons %}
+                        <a href="{{ person.get_absolute_url }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="generation-badge">第{{ person.generation.number }}世</span>
+                                <strong>{{ person.name }}</strong>
+                                {% if person.courtesy_name %}
+                                <small class="text-muted">（字{{ person.courtesy_name }}）</small>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ person.updated_at|date:"Y-m-d" }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
