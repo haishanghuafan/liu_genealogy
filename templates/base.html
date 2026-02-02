@@ -302,6 +302,16 @@
                             <li><a class="dropdown-item" href="{% url 'genealogy:profile' %}">
                                 <i class="bi bi-person me-2"></i>个人资料
                             </a></li>
+                            <li><a class="dropdown-item" href="{% url 'genealogy:my_family' %}">
+                                <i class="bi bi-tree me-2"></i>我的家族
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'genealogy:edit_person' %}">
+                                <i class="bi bi-pencil me-2"></i>编辑资料
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'genealogy:upload_media' %}">
+                                <i class="bi bi-upload me-2"></i>上传资料
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'genealogy:password_change' %}">
                                 <i class="bi bi-key me-2"></i>修改密码
                             </a></li>
@@ -323,7 +333,7 @@
                             <i class="bi bi-box-arrow-in-right me-1"></i>登录
                         </a>
                     </li>
-                    <li class="nav-item">
+                    <li class="nav-item hide">
                         <a class="nav-link" href="{% url 'genealogy:register' %}">
                             <i class="bi bi-person-plus me-1"></i>注册
                         </a>

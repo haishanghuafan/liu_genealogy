@@ -232,8 +232,6 @@ class RegisterView(View):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            # 创建用户资料
-            UserProfile.objects.create(user=user)
             # 自动登录
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password1')
@@ -335,3 +333,219 @@ def logout_view(request):
     
     logout(request)
     return redirect('genealogy:home')
+
+
+class MyFamilyView(LoginRequiredMixin, View):
+    """我的家族视图，显示用户关联人物的家族树"""
+    template_name = 'genealogy/my_family.html'
+    
+    def get(self, request):
+        # 获取用户关联的人物
+        related_person = None
+        if hasattr(request.user, 'related_person'):
+            related_person = request.user.related_person
+        else:
+            # 尝试从UserProfile获取关联人物
+            try:
+                from genealogy.models import UserProfile
+                profile = UserProfile.objects.get(user=request.user)
+                if profile.related_person:
+                    related_person = profile.related_person
+            except:
+                pass
+        
+        # 获取家族树数据
+        ancestors = []
+        descendants = []
+        if related_person:
+            # 获取祖先
+            current = related_person
+            while current.father:
+                ancestors.append(current.father)
+                current = current.father
+            ancestors.reverse()  # 反转顺序，从最早的祖先开始
+            
+            # 获取后代
+            def get_descendants(person):
+                kids = []
+                if person.gender == 'M':
+                    children = person.children_as_father.all()
+                else:
+                    children = person.children_as_mother.all()
+                for child in children:
+                    kids.append(child)
+                    kids.extend(get_descendants(child))
+                return kids
+            descendants = get_descendants(related_person)
+        
+        return render(request, self.template_name, {
+            'related_person': related_person,
+            'ancestors': ancestors,
+            'descendants': descendants
+        })
+
+
+class EditPersonView(LoginRequiredMixin, View):
+    """编辑资料视图，允许用户编辑自己关联的人物信息"""
+    template_name = 'genealogy/edit_person.html'
+    
+    def get(self, request):
+        # 获取用户关联的人物
+        related_person = None
+        if hasattr(request.user, 'related_person'):
+            related_person = request.user.related_person
+        else:
+            # 尝试从UserProfile获取关联人物
+            try:
+                from genealogy.models import UserProfile
+                profile = UserProfile.objects.get(user=request.user)
+                if profile.related_person:
+                    related_person = profile.related_person
+            except:
+                pass
+        
+        if not related_person:
+            return render(request, self.template_name, {
+                'error': '您还没有关联任何人物，请联系管理员为您设置。'
+            })
+        
+        return render(request, self.template_name, {
+            'related_person': related_person
+        })
+    
+    def post(self, request):
+        # 获取用户关联的人物
+        related_person = None
+        if hasattr(request.user, 'related_person'):
+            related_person = request.user.related_person
+        else:
+            # 尝试从UserProfile获取关联人物
+            try:
+                from genealogy.models import UserProfile
+                profile = UserProfile.objects.get(user=request.user)
+                if profile.related_person:
+                    related_person = profile.related_person
+            except:
+                pass
+        
+        if not related_person:
+            return render(request, self.template_name, {
+                'error': '您还没有关联任何人物，请联系管理员为您设置。'
+            })
+        
+        # 更新人物信息
+        related_person.name = request.POST.get('name', related_person.name)
+        related_person.courtesy_name = request.POST.get('courtesy_name', related_person.courtesy_name)
+        related_person.art_name = request.POST.get('art_name', related_person.art_name)
+        related_person.alias = request.POST.get('alias', related_person.alias)
+        related_person.generation_char = request.POST.get('generation_char', related_person.generation_char)
+        related_person.birth_year = request.POST.get('birth_year') or None
+        related_person.death_year = request.POST.get('death_year') or None
+        related_person.birth_place = request.POST.get('birth_place', related_person.birth_place)
+        related_person.burial_place = request.POST.get('burial_place', related_person.burial_place)
+        related_person.burial_fengshui = request.POST.get('burial_fengshui', related_person.burial_fengshui)
+        related_person.burial_direction = request.POST.get('burial_direction', related_person.burial_direction)
+        related_person.biography = request.POST.get('biography', related_person.biography)
+        related_person.achievements = request.POST.get('achievements', related_person.achievements)
+        related_person.descendants_location = request.POST.get('descendants_location', related_person.descendants_location)
+        
+        # 处理头像上传
+        if 'avatar' in request.FILES:
+            related_person.avatar = request.FILES['avatar']
+        
+        related_person.save()
+        
+        return render(request, self.template_name, {
+            'related_person': related_person,
+            'success': '资料更新成功！'
+        })
+
+
+class UploadMediaView(LoginRequiredMixin, View):
+    """上传资料视图，允许用户上传与自己关联人物相关的图片和视频"""
+    template_name = 'genealogy/upload_media.html'
+    
+    def get(self, request):
+        # 获取用户关联的人物
+        related_person = None
+        if hasattr(request.user, 'related_person'):
+            related_person = request.user.related_person
+        else:
+            # 尝试从UserProfile获取关联人物
+            try:
+                from genealogy.models import UserProfile
+                profile = UserProfile.objects.get(user=request.user)
+                if profile.related_person:
+                    related_person = profile.related_person
+            except:
+                pass
+        
+        if not related_person:
+            return render(request, self.template_name, {
+                'error': '您还没有关联任何人物，请联系管理员为您设置。'
+            })
+        
+        return render(request, self.template_name, {
+            'related_person': related_person
+        })
+    
+    def post(self, request):
+        # 获取用户关联的人物
+        related_person = None
+        if hasattr(request.user, 'related_person'):
+            related_person = request.user.related_person
+        else:
+            # 尝试从UserProfile获取关联人物
+            try:
+                from genealogy.models import UserProfile
+                profile = UserProfile.objects.get(user=request.user)
+                if profile.related_person:
+                    related_person = profile.related_person
+            except:
+                pass
+        
+        if not related_person:
+            return render(request, self.template_name, {
+                'error': '您还没有关联任何人物，请联系管理员为您设置。'
+            })
+        
+        # 处理媒体上传
+        media_type = request.POST.get('media_type')
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        file = request.FILES.get('file')
+        
+        if not media_type or not title or not file:
+            return render(request, self.template_name, {
+                'related_person': related_person,
+                'error': '请填写完整的表单信息。'
+            })
+        
+        # 保存媒体文件
+        try:
+            if media_type == 'image':
+                from genealogy.models import PersonImage
+                PersonImage.objects.create(
+                    person=related_person,
+                    image=file,
+                    title=title,
+                    description=description
+                )
+            elif media_type == 'video':
+                from genealogy.models import PersonVideo
+                PersonVideo.objects.create(
+                    person=related_person,
+                    video=file,
+                    title=title,
+                    description=description
+                )
+            success = '资料上传成功！'
+        except Exception as e:
+            success = None
+            error = f'上传失败：{str(e)}'
+        
+        return render(request, self.template_name, {
+            'related_person': related_person,
+            'success': success,
+            'error': error
+        })

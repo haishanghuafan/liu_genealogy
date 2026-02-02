@@ -59,6 +59,15 @@ urlpatterns = [
     # 编辑人物信息
     path('person/<int:pk>/edit/', views.PersonEditView.as_view(), name='person_edit'),
     
+    # 我的家族
+    path('my_family/', views.MyFamilyView.as_view(), name='my_family'),
+    
+    # 编辑自己的资料
+    path('edit_person/', views.EditPersonView.as_view(), name='edit_person'),
+    
+    # 上传资料
+    path('upload_media/', views.UploadMediaView.as_view(), name='upload_media'),
+    
     # 获取世代选项（用于AJAX请求）
     path('get_generations/', views.get_generations, name='get_generations'),
     
