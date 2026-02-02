@@ -21,7 +21,6 @@ def import_generations_from_excel(excel_file):
             number = int(row['世代数'])
             is_spouse = bool(row['是否为配偶世代']) if pd.notna(row['是否为配偶世代']) else False
             name = str(row['世代名称']) if pd.notna(row['世代名称']) else f'第{number}世'
-            generation_char = str(row['辈份字']) if pd.notna(row['辈份字']) else ''
             description = str(row['描述']) if pd.notna(row['描述']) else ''
             
             Generation.objects.get_or_create(
@@ -29,7 +28,6 @@ def import_generations_from_excel(excel_file):
                 is_spouse=is_spouse,
                 defaults={
                     'name': name,
-                    'generation_char': generation_char,
                     'description': description
                 }
             )
@@ -55,6 +53,7 @@ def import_persons_from_excel(excel_file):
             courtesy_name = str(row['字']) if pd.notna(row['字']) else ''
             art_name = str(row['号']) if pd.notna(row['号']) else ''
             alias = str(row['别名']) if pd.notna(row['别名']) else ''
+            generation_char = str(row['辈份字']) if pd.notna(row['辈份字']) else ''
             gender = str(row['性别']) if pd.notna(row['性别']) else 'M'
             gender = 'M' if gender == '男' else 'F'
             is_outsider = bool(row['是否为外族配偶']) if pd.notna(row['是否为外族配偶']) else False
@@ -95,6 +94,7 @@ def import_persons_from_excel(excel_file):
                     'courtesy_name': courtesy_name,
                     'art_name': art_name,
                     'alias': alias,
+                    'generation_char': generation_char,
                     'gender': gender,
                     'is_outsider': is_outsider,
                     'branch': branch,

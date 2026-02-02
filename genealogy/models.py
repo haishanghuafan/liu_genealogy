@@ -4,7 +4,34 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.urls import reverse
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, ValidationError
+import os
+
+def validate_file_size(value, max_size_mb=5):
+    """验证文件大小"""
+    max_size = max_size_mb * 1024 * 1024  # 转换为字节
+    if value.size > max_size:
+        raise ValidationError(f'文件大小不能超过{max_size_mb}MB')
+
+def validate_image_extension(value):
+    """验证图片格式"""
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+    if not ext in valid_extensions:
+        raise ValidationError('只支持上传JPG、JPEG、PNG、GIF、WebP格式的图片')
+
+def validate_video_extension(value):
+    """验证视频格式"""
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = ['.mp4', '.avi', '.mov', '.wmv', '.flv']
+    if not ext in valid_extensions:
+        raise ValidationError('只支持上传MP4、AVI、MOV、WMV、FLV格式的视频')
+
+def validate_video_size(value):
+    """验证视频大小"""
+    max_size = 100 * 1024 * 1024  # 100MB
+    if value.size > max_size:
+        raise ValidationError('视频文件大小不能超过100MB')
 
 
 class Generation(models.Model):
@@ -12,7 +39,6 @@ class Generation(models.Model):
     number = models.IntegerField(verbose_name='世代数')
     is_spouse = models.BooleanField(default=False, verbose_name='是否为配偶世代')
     name = models.CharField(max_length=50, blank=True, verbose_name='世代名称')
-    generation_char = models.CharField(max_length=10, blank=True, verbose_name='辈份字')
     description = models.TextField(blank=True, verbose_name='描述')
     
     class Meta:
@@ -25,8 +51,6 @@ class Generation(models.Model):
         base_str = f"第{self.number}世"
         if self.is_spouse:
             base_str += "（配）"
-        if self.generation_char:
-            base_str += f"({self.generation_char}字辈)"
         return base_str
     
     def get_generation_title(self):
@@ -91,6 +115,7 @@ class Person(models.Model):
     courtesy_name = models.CharField(max_length=100, blank=True, verbose_name='字')
     art_name = models.CharField(max_length=100, blank=True, verbose_name='号')
     alias = models.CharField(max_length=100, blank=True, verbose_name='别名')
+    generation_char = models.CharField(max_length=10, blank=True, verbose_name='辈份字')
     
     # 性别
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', verbose_name='性别', help_text='性别变动后需要先保存，然后重新加载页面以更新配偶关系选项')
@@ -177,7 +202,8 @@ class Person(models.Model):
         upload_to='avatars/',
         blank=True,
         null=True,
-        verbose_name='头像'
+        verbose_name='头像',
+        validators=[validate_image_extension, validate_file_size]
     )
     
     # 用户账号关联
@@ -368,6 +394,13 @@ class GenealogyRecord(models.Model):
     title = models.CharField(max_length=200, verbose_name='标题')
     content = models.TextField(verbose_name='内容')
     source = models.CharField(max_length=300, blank=True, verbose_name='来源')
+    source_image = models.ImageField(
+        upload_to='record_images/',
+        blank=True,
+        null=True,
+        verbose_name='来源图片',
+        validators=[validate_image_extension, validate_file_size]
+    )
     page_number = models.CharField(max_length=50, blank=True, verbose_name='页码')
     related_persons = models.ManyToManyField(
         Person,
@@ -383,6 +416,17 @@ class GenealogyRecord(models.Model):
     
     def __str__(self):
         return self.title
+    
+    def get_absolute_url(self):
+        """获取族谱记录详情页面的URL"""
+        from django.urls import reverse
+        return reverse('genealogy:record_detail', kwargs={'pk': self.pk})
+    
+    def has_source_image(self):
+        """是否有来源图片"""
+        return bool(self.source_image)
+    has_source_image.short_description = '有来源图片'
+    has_source_image.boolean = True
 
 
 class PersonImage(models.Model):
@@ -395,7 +439,8 @@ class PersonImage(models.Model):
     )
     image = models.ImageField(
         upload_to='person_images/',
-        verbose_name='图片'
+        verbose_name='图片',
+        validators=[validate_image_extension, validate_file_size]
     )
     title = models.CharField(max_length=100, blank=True, verbose_name='标题')
     description = models.TextField(blank=True, verbose_name='描述')
@@ -419,7 +464,7 @@ class PersonVideo(models.Model):
     )
     video = models.FileField(
         upload_to='person_videos/',
-        validators=[FileExtensionValidator(['mp4', 'avi', 'mov', 'wmv', 'flv'])],
+        validators=[validate_video_extension, validate_video_size],
         verbose_name='视频'
     )
     title = models.CharField(max_length=100, blank=True, verbose_name='标题')

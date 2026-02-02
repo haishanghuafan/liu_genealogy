@@ -24,7 +24,6 @@ def export_generations():
                 '世代数': gen.number,
                 '是否为配偶世代': gen.is_spouse,
                 '世代名称': gen.name,
-                '辈份字': gen.generation_char,
                 '描述': gen.description
             })
         return pd.DataFrame(data)
@@ -69,6 +68,7 @@ def export_persons():
                 '字': person.courtesy_name,
                 '号': person.art_name,
                 '别名': person.alias,
+                '辈份字': person.generation_char,
                 '性别': gender,
                 '是否为外族配偶': person.is_outsider,
                 '世代数': person.generation.number if person.generation else '',

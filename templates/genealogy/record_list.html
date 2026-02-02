@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}族谱记录 - 刘氏乾正公族谱{% endblock %}
+
+{% block content %}
+<!-- 页面标题 -->
+<div class="page-header">
+    <div class="container">
+        <h1 class="serif"><i class="bi bi-book me-3"></i>族谱记录</h1>
+        <p class="mb-0">查看族谱原始资料记录</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- 记录列表 -->
+    <div class="row">
+        {% for record in records %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title serif">
+                        <a href="{{ record.get_absolute_url }}" class="text-decoration-none">
+                            {{ record.title }}
+                        </a>
+                    </h5>
+                    {% if record.source %}
+                    <p class="card-text text-muted mb-2">
+                        <i class="bi bi-file-text me-1"></i>来源：{{ record.source }}
+                        {% if record.source_image %}
+                        <span class="badge bg-success ms-2">
+                            <i class="bi bi-image"></i> 有图片
+                        </span>
+                        {% endif %}
+                    </p>
+                    {% else %}
+                    {% if record.source_image %}
+                    <p class="card-text text-muted mb-2">
+                        <span class="badge bg-success">
+                            <i class="bi bi-image"></i> 有来源图片
+                        </span>
+                    </p>
+                    {% endif %}
+                    {% endif %}
+                    {% if record.page_number %}
+                    <p class="card-text text-muted mb-2">
+                        <i class="bi bi-bookmark-check me-1"></i>页码：{{ record.page_number }}
+                    </p>
+                    {% endif %}
+                    <p class="card-text">
+                        {{ record.content|truncatechars:150 }}
+                    </p>
+                    {% if record.related_persons.exists %}
+                    <p class="card-text small text-muted mt-2">
+                        <i class="bi bi-people me-1"></i>相关人物：
+                        {% for person in record.related_persons.all|slice:":3" %}
+                        <a href="{{ person.get_absolute_url }}" class="text-decoration-none">
+                            {{ person.name }}{% if not forloop.last %}、{% endif %}
+                        </a>
+                        {% endfor %}
+                        {% if record.related_persons.count > 3 %}
+                        ...等{{ record.related_persons.count }}人
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-white">
+                    <a href="{{ record.get_absolute_url }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i>查看详情
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>暂无族谱记录
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 分页 -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">
+                    <i class="bi bi-chevron-double-left"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                    <i class="bi bi-chevron-double-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

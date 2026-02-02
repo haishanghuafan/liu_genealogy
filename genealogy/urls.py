@@ -63,4 +63,8 @@ urlpatterns = [
     
     # 获取世代选项（用于AJAX请求）
     path('get_generations/', views.get_generations, name='get_generations'),
+    
+    # 族谱记录
+    path('records/', views.GenealogyRecordListView.as_view(), name='record_list'),
+    path('record/<int:pk>/', views.GenealogyRecordDetailView.as_view(), name='record_detail'),
 ]

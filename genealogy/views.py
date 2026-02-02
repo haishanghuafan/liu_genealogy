@@ -13,7 +13,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
 from django.core.paginator import Paginator
-from .models import Person, Generation, Branch, SpouseRelation, UserProfile
+from .models import Person, Generation, Branch, SpouseRelation, UserProfile, GenealogyRecord
 from .permissions import PersonOwnerMixin
 
 
@@ -24,7 +24,7 @@ class HomeView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['total_persons'] = Person.objects.count()
-        context['total_generations'] = Generation.objects.count()
+        context['total_generations'] = Generation.objects.filter(is_spouse=False).count()
         context['total_branches'] = Branch.objects.count()
         context['first_ancestor'] = Person.objects.filter(generation__number=1).first()
         context['recent_persons'] = Person.objects.order_by('-updated_at')[:10]
@@ -37,8 +37,8 @@ class GenealogyTreeView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # 获取所有世代
-        generations = Generation.objects.prefetch_related('persons').all()
+        # 获取所有世代（过滤掉配偶世代）
+        generations = Generation.objects.filter(is_spouse=False).prefetch_related('persons').all()
         context['generations'] = generations
         
         # 获取始祖
@@ -91,7 +91,7 @@ class PersonListView(ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['generations'] = Generation.objects.all()
+        context['generations'] = Generation.objects.filter(is_spouse=False).all()
         context['branches'] = Branch.objects.all()
         context['search_query'] = self.request.GET.get('search', '')
         return context
@@ -179,6 +179,10 @@ class GenerationListView(ListView):
     model = Generation
     template_name = 'genealogy/generation_list.html'
     context_object_name = 'generations'
+    
+    def get_queryset(self):
+        # 只显示非配偶世代
+        return Generation.objects.filter(is_spouse=False).all()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -276,6 +280,32 @@ class PersonEditView(PersonOwnerMixin, View):
         # 这里可以添加表单处理逻辑
         # 只允许编辑个人信息，不允许编辑父母、子女等关系
         return redirect('genealogy:person_detail', pk=pk)
+
+
+class GenealogyRecordListView(ListView):
+    """族谱记录列表"""
+    model = GenealogyRecord
+    template_name = 'genealogy/record_list.html'
+    context_object_name = 'records'
+    paginate_by = 20
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+
+
+class GenealogyRecordDetailView(DetailView):
+    """族谱记录详情"""
+    model = GenealogyRecord
+    template_name = 'genealogy/record_detail.html'
+    context_object_name = 'record'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        record = self.object
+        # 获取相关人物
+        context['related_persons'] = record.related_persons.all()
+        return context
 
 
 def get_generations(request):

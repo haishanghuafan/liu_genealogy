@@ -180,7 +180,7 @@ class SpouseRelationAdmin(admin.ModelAdmin):
 
 @admin.register(GenealogyRecord)
 class GenealogyRecordAdmin(admin.ModelAdmin):
-    list_display = ['title', 'source', 'page_number']
+    list_display = ['title', 'source', 'page_number', 'has_source_image']
     search_fields = ['title', 'content', 'source']
     filter_horizontal = ['related_persons']
 
