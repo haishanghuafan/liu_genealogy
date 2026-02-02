@@ -19,7 +19,8 @@ def import_generations_from_excel(excel_file):
         df = pd.read_excel(excel_file, sheet_name='世代')
         for _, row in df.iterrows():
             number = int(row['世代数'])
-            is_spouse = bool(row['是否为配偶世代']) if pd.notna(row['是否为配偶世代']) else False
+            is_spouse_val = row['是否为配偶世代']
+            is_spouse = True if pd.notna(is_spouse_val) and (is_spouse_val == '是' or is_spouse_val == True or is_spouse_val == 'TRUE') else False
             name = str(row['世代名称']) if pd.notna(row['世代名称']) else f'第{number}世'
             description = str(row['描述']) if pd.notna(row['描述']) else ''
             
@@ -56,7 +57,8 @@ def import_persons_from_excel(excel_file):
             generation_char = str(row['辈份字']) if pd.notna(row['辈份字']) else ''
             gender = str(row['性别']) if pd.notna(row['性别']) else 'M'
             gender = 'M' if gender == '男' else 'F'
-            is_outsider = bool(row['是否为外族配偶']) if pd.notna(row['是否为外族配偶']) else False
+            is_outsider_val = row['是否为外族配偶']
+            is_outsider = True if pd.notna(is_outsider_val) and (is_outsider_val == '是' or is_outsider_val == True or is_outsider_val == 'TRUE') else False
             
             generation_number = int(row['世代数']) if pd.notna(row['世代数']) else 1
             # 判断是否为配偶世代（根据世代名称判断）

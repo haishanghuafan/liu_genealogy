@@ -22,7 +22,7 @@ def export_generations():
         for gen in generations:
             data.append({
                 '世代数': gen.number,
-                '是否为配偶世代': gen.is_spouse,
+                '是否为配偶世代': '是' if gen.is_spouse else '否',
                 '世代名称': gen.name,
                 '描述': gen.description
             })
@@ -70,7 +70,7 @@ def export_persons():
                 '别名': person.alias,
                 '辈份字': person.generation_char,
                 '性别': gender,
-                '是否为外族配偶': person.is_outsider,
+                '是否为外族配偶': '是' if person.is_outsider else '否',
                 '世代数': person.generation.number if person.generation else '',
                 '世代名称': generation_name,
                 '父亲姓名': father_name,
