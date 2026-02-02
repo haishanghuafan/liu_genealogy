@@ -72,6 +72,11 @@ class Branch(models.Model):
     
     def __str__(self):
         return self.name
+    
+    def get_absolute_url(self):
+        """获取支系详情页面的URL"""
+        from django.urls import reverse
+        return reverse('genealogy:branch_detail', kwargs={'pk': self.pk})
 
 
 class Person(models.Model):
@@ -88,10 +93,10 @@ class Person(models.Model):
     alias = models.CharField(max_length=100, blank=True, verbose_name='别名')
     
     # 性别
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', verbose_name='性别')
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', verbose_name='性别', help_text='性别变动后需要先保存，然后重新加载页面以更新配偶关系选项')
     
     # 是否为外族配偶
-    is_outsider = models.BooleanField(default=False, verbose_name='是否为外族配偶')
+    is_outsider = models.BooleanField(default=False, verbose_name='是否为外族配偶', help_text='外族配偶状态变动后，世代选项会自动更新；若需更新配偶关系选项，请保存并重新加载页面')
     
     # 世代
     generation = models.ForeignKey(
@@ -312,6 +317,7 @@ class SpouseRelation(models.Model):
         ('marriage', '婚姻'),
         ('concubine', '妾室'),
         ('adopted', '继配'),
+        ('zhuazhui', '招赘'),
     ]
     
     husband = models.ForeignKey(

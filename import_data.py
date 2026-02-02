@@ -19,14 +19,18 @@ def import_generations_from_excel(excel_file):
         df = pd.read_excel(excel_file, sheet_name='世代')
         for _, row in df.iterrows():
             number = int(row['世代数'])
+            is_spouse = bool(row['是否为配偶世代']) if pd.notna(row['是否为配偶世代']) else False
             name = str(row['世代名称']) if pd.notna(row['世代名称']) else f'第{number}世'
             generation_char = str(row['辈份字']) if pd.notna(row['辈份字']) else ''
+            description = str(row['描述']) if pd.notna(row['描述']) else ''
             
             Generation.objects.get_or_create(
                 number=number,
+                is_spouse=is_spouse,
                 defaults={
                     'name': name,
-                    'generation_char': generation_char
+                    'generation_char': generation_char,
+                    'description': description
                 }
             )
         print(f"✅ 成功导入 {Generation.objects.count()} 个世代")
@@ -38,6 +42,8 @@ def import_persons_from_excel(excel_file):
     print("导入人物数据...")
     try:
         df = pd.read_excel(excel_file, sheet_name='人物')
+        # 筛选人物数据
+        df = df[df['姓名'].notna()]
         person_mapping = {}
         
         # 先创建所有人物，不设置关系
@@ -51,9 +57,13 @@ def import_persons_from_excel(excel_file):
             alias = str(row['别名']) if pd.notna(row['别名']) else ''
             gender = str(row['性别']) if pd.notna(row['性别']) else 'M'
             gender = 'M' if gender == '男' else 'F'
+            is_outsider = bool(row['是否为外族配偶']) if pd.notna(row['是否为外族配偶']) else False
             
             generation_number = int(row['世代数']) if pd.notna(row['世代数']) else 1
-            generation = Generation.objects.get_or_create(number=generation_number)[0]
+            # 判断是否为配偶世代（根据世代名称判断）
+            generation_name = str(row['世代名称']) if pd.notna(row['世代名称']) else ''
+            is_spouse_generation = '（配）' in generation_name
+            generation = Generation.objects.get_or_create(number=generation_number, is_spouse=is_spouse_generation)[0]
             
             birth_year = int(row['出生年份']) if pd.notna(row['出生年份']) else None
             death_year = int(row['逝世年份']) if pd.notna(row['逝世年份']) else None
@@ -67,6 +77,7 @@ def import_persons_from_excel(excel_file):
             burial_direction = str(row['坐向']) if pd.notna(row['坐向']) else ''
             notes = str(row['备注']) if pd.notna(row['备注']) else ''
             order = int(row['排序']) if pd.notna(row['排序']) else 0
+            account_status = str(row['账号状态']) if pd.notna(row['账号状态']) else 'inactive'
             
             # 获取或创建支系
             branch = None
@@ -85,6 +96,7 @@ def import_persons_from_excel(excel_file):
                     'art_name': art_name,
                     'alias': alias,
                     'gender': gender,
+                    'is_outsider': is_outsider,
                     'branch': branch,
                     'birth_year': birth_year,
                     'death_year': death_year,
@@ -96,7 +108,8 @@ def import_persons_from_excel(excel_file):
                     'burial_fengshui': burial_fengshui,
                     'burial_direction': burial_direction,
                     'notes': notes,
-                    'order': order
+                    'order': order,
+                    'account_status': account_status
                 }
             )
             person_mapping[name] = person
@@ -104,6 +117,7 @@ def import_persons_from_excel(excel_file):
         # 然后设置父子关系
         print("设置人物关系...")
         df = pd.read_excel(excel_file, sheet_name='人物')
+        df = df[df['姓名'].notna()]
         for _, row in df.iterrows():
             name = str(row['姓名']) if pd.notna(row['姓名']) else ''
             if not name or name not in person_mapping:
@@ -132,6 +146,8 @@ def import_spouse_relations_from_excel(excel_file):
     print("导入配偶关系数据...")
     try:
         df = pd.read_excel(excel_file, sheet_name='配偶关系')
+        # 筛选配偶关系数据
+        df = df[df['丈夫姓名'].notna() & df['妻子姓名'].notna()]
         person_mapping = {}
         
         # 构建人物映射
@@ -142,21 +158,68 @@ def import_spouse_relations_from_excel(excel_file):
         for _, row in df.iterrows():
             husband_name = str(row['丈夫姓名']) if pd.notna(row['丈夫姓名']) else ''
             wife_name = str(row['妻子姓名']) if pd.notna(row['妻子姓名']) else ''
-            order = int(row['排序']) if pd.notna(row['排序']) else 1
+            relation_type = str(row['关系类型']) if pd.notna(row['关系类型']) else 'marriage'
+            source_info = str(row['配偶来源信息']) if pd.notna(row['配偶来源信息']) else ''
+            order = int(row['排序（第几任）']) if pd.notna(row['排序（第几任）']) else 1
             
             if husband_name and wife_name and husband_name in person_mapping and wife_name in person_mapping:
                 husband = person_mapping[husband_name]
                 wife = person_mapping[wife_name]
                 
+                # 转换关系类型
+                relation_type_map = {
+                    '婚姻': 'marriage',
+                    '妾室': 'concubine',
+                    '继配': 'adopted',
+                    '招赘': 'zhuazhui'
+                }
+                if relation_type in relation_type_map:
+                    relation_type = relation_type_map[relation_type]
+                
                 SpouseRelation.objects.get_or_create(
                     husband=husband,
                     wife=wife,
-                    defaults={'order': order}
+                    defaults={
+                        'relation_type': relation_type,
+                        'source_info': source_info,
+                        'order': order
+                    }
                 )
         
         print(f"✅ 成功导入 {SpouseRelation.objects.count()} 个配偶关系")
     except Exception as e:
         print(f"❌ 导入配偶关系数据失败: {e}")
+
+def import_branches_from_excel(excel_file):
+    """从Excel导入支系数据"""
+    print("导入支系数据...")
+    try:
+        df = pd.read_excel(excel_file, sheet_name='支系')
+        for _, row in df.iterrows():
+            name = str(row['支系名称']) if pd.notna(row['支系名称']) else ''
+            if not name:
+                continue
+            
+            founder_name = str(row['开基祖']) if pd.notna(row['开基祖']) else ''
+            description = str(row['描述']) if pd.notna(row['描述']) else ''
+            location = str(row['分布地区']) if pd.notna(row['分布地区']) else ''
+            
+            # 获取开基祖
+            founder = None
+            if founder_name:
+                founder = Person.objects.filter(name=founder_name).first()
+            
+            Branch.objects.get_or_create(
+                name=name,
+                defaults={
+                    'founder': founder,
+                    'description': description,
+                    'location': location
+                }
+            )
+        print(f"✅ 成功导入 {Branch.objects.count()} 个支系")
+    except Exception as e:
+        print(f"❌ 导入支系数据失败: {e}")
 
 def import_data_from_excel(excel_file):
     """从Excel导入所有数据"""
@@ -171,11 +234,12 @@ def import_data_from_excel(excel_file):
     
     # 导入数据
     import_generations_from_excel(excel_file)
+    import_branches_from_excel(excel_file)
     import_persons_from_excel(excel_file)
     import_spouse_relations_from_excel(excel_file)
     
     print("\n数据导入完成！")
-    print(f"统计:")
+    print("统计:")
     print(f"  世代: {Generation.objects.count()}")
     print(f"  支系: {Branch.objects.count()}")
     print(f"  人物: {Person.objects.count()}")
