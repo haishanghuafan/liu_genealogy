@@ -41,17 +41,23 @@ class PersonVideoInline(admin.TabularInline):
     extra = 1
 
 
+from django.utils.safestring import mark_safe
+
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
-    def full_name(self, obj):
-        """显示姓名和字"""
-        if obj.courtesy_name:
-            return f"{obj.name}（{obj.courtesy_name}）"
-        return obj.name
-    full_name.short_description = '姓名/字'
+    def display_name(self, obj):
+        """显示姓名"""
+        return mark_safe(f'<span style="white-space: nowrap; min-width: 60px; display: inline-block;">{obj.name}</span>')
+    display_name.short_description = '姓名'
+    
+    def display_courtesy_name(self, obj):
+        """显示字"""
+        return mark_safe(f'<span style="white-space: nowrap; min-width: 30px; display: inline-block;">{obj.courtesy_name or "-"}</span>')
+    display_courtesy_name.short_description = '字'
     
     list_display = [
-        'full_name',
+        'display_name',
+        'display_courtesy_name',
         'art_name',
         'generation',
         'gender',
