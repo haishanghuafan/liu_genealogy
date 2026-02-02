@@ -43,9 +43,15 @@ class PersonVideoInline(admin.TabularInline):
 
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
+    def full_name(self, obj):
+        """显示姓名和字"""
+        if obj.courtesy_name:
+            return f"{obj.name}（{obj.courtesy_name}）"
+        return obj.name
+    full_name.short_description = '姓名/字'
+    
     list_display = [
-        'name',
-        'courtesy_name',
+        'full_name',
         'art_name',
         'generation',
         'gender',
