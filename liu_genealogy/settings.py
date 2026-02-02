@@ -4,22 +4,27 @@ Django settings for liu_genealogy project.
 刘氏乾正公族谱网站 - Django 配置文件
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# 加载环境变量
+from dotenv import load_dotenv
+load_dotenv()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-tbdo!7dn=c)us&!#x72pdxji(a3!2i9svo-2sxig3eg&m@1*%5'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-tbdo!7dn=c)us&!#x72pdxji(a3!2i9svo-2sxig3eg&m@1*%5')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+# 允许的主机
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 
 # Application definition

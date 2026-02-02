@@ -24,6 +24,7 @@ __pycache__/
 # 忽略虚拟环境
 venv/
 env/
+.env
 .venv/
 node_modules/
 
@@ -51,9 +52,9 @@ export.xlsx
 # 忽略数据库文件
 *.sqlite3
 *.db
-
 # 忽略静态文件和媒体文件
-# /static/
+/static/
+/staticfiles/
 # /media/
 
 # 忽略日志文件
