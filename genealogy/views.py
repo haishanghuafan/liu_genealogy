@@ -8,7 +8,7 @@ from django.views.generic import (
     DetailView,
     View,
 )
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
@@ -326,3 +326,12 @@ def get_generations(request):
         })
     
     return JsonResponse({'generations': generations_data})
+
+
+def logout_view(request):
+    """自定义登出视图，支持GET请求"""
+    from django.contrib.auth import logout
+    from django.shortcuts import redirect
+    
+    logout(request)
+    return redirect('genealogy:home')

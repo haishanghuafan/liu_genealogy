@@ -38,9 +38,7 @@ urlpatterns = [
         redirect_authenticated_user=True
     ), name='login'),
     
-    path('logout/', auth_views.LogoutView.as_view(
-        next_page='genealogy:home'
-    ), name='logout'),
+    path('logout/', views.logout_view, name='logout'),
     
     # 修改密码
     path('password_change/', auth_views.PasswordChangeView.as_view(
