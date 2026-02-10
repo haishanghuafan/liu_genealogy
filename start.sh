@@ -11,7 +11,7 @@ nginx
 
 # 启动gunicorn服务
 gunicorn liu_genealogy.wsgi:application \
-    --bind 127.0.0.1:8000 \
+    --bind 0.0.0.0:8000 \
     --workers 3 \
     --timeout 120 \
     --access-logfile /app/logs/gunicorn_access.log \
