@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   web:
     build: .
@@ -11,7 +9,6 @@ services:
       - static_volume:/app/staticfiles
     env_file:
       - .env
-      - .env.example
     restart: unless-stopped
 
   nginx:
