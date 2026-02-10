@@ -4,11 +4,10 @@ services:
   web:
     build: .
     ports:
-      - "80:80"
+      - "8000:80"
     volumes:
       - .:/app
-    environment:
-      - DEBUG=False
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+    env_file:
+      - .env
+      - .env.example
     restart: unless-stopped

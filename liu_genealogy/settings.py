@@ -10,9 +10,23 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 加载环境变量
+# 加载环境变量 - 优先使用.env文件，如果不存在则使用.env.example
 from dotenv import load_dotenv
-load_dotenv()
+import os
+
+# 检查 .env 文件是否存在，否则使用 .env.example
+env_path = BASE_DIR / '.env'
+example_env_path = BASE_DIR / '.env.example'
+
+if env_path.exists():
+    load_dotenv(env_path)
+elif example_env_path.exists():
+    load_dotenv(example_env_path)
+else:
+    # 如果两个文件都不存在，至少确保基本的环境变量被设置
+    os.environ.setdefault('DEBUG', 'False')
+    os.environ.setdefault('SECRET_KEY', 'django-insecure-default-key-for-testing')
+    os.environ.setdefault('ALLOWED_HOSTS', '*')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
