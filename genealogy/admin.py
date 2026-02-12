@@ -2,7 +2,11 @@
 刘氏乾正公族谱 - 后台管理配置
 """
 from django.contrib import admin
-from .models import Generation, Branch, Person, SpouseRelation, GenealogyRecord, UserProfile, PersonImage, PersonVideo
+from .models import (
+    Generation, Branch, Person, SpouseRelation, GenealogyRecord, 
+    UserProfile, PersonImage, PersonVideo,
+    PageView, DailyVisitStats, PageVisitStats
+)
 
 
 @admin.register(Generation)
@@ -216,3 +220,50 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ['user', 'phone', 'related_person']
     search_fields = ['user__username', 'user__email', 'phone']
     raw_id_fields = ['related_person']
+
+
+# ==================== 访问统计管理 ====================
+
+@admin.register(PageView)
+class PageViewAdmin(admin.ModelAdmin):
+    list_display = ['path', 'ip_address', 'user', 'is_unique_visit', 'visit_date', 'timestamp']
+    list_filter = ['visit_date', 'is_unique_visit', 'path']
+    search_fields = ['path', 'ip_address', 'user_agent', 'user__username']
+    readonly_fields = ['url', 'path', 'ip_address', 'user_agent', 'referer', 'session_key', 
+                       'user', 'timestamp', 'is_unique_visit', 'visit_date']
+    date_hierarchy = 'visit_date'
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DailyVisitStats)
+class DailyVisitStatsAdmin(admin.ModelAdmin):
+    list_display = ['date', 'total_visits', 'unique_visitors', 'unique_ips']
+    list_filter = ['date']
+    readonly_fields = ['date', 'total_visits', 'unique_visitors', 'unique_ips']
+    date_hierarchy = 'date'
+    ordering = ['-date']
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PageVisitStats)
+class PageVisitStatsAdmin(admin.ModelAdmin):
+    list_display = ['path', 'total_visits', 'unique_visitors', 'last_visit']
+    readonly_fields = ['path', 'total_visits', 'unique_visitors', 'last_visit']
+    ordering = ['-total_visits']
+    search_fields = ['path']
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False

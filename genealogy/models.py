@@ -5,6 +5,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.core.validators import FileExtensionValidator, ValidationError
+from django.utils import timezone
 import os
 
 def validate_file_size(value, max_size_mb=5):
@@ -534,3 +535,75 @@ def update_user_profile_relation(sender, instance, **kwargs):
                 user=instance.related_user,
                 related_person=instance
             )
+
+
+class PageView(models.Model):
+    """页面访问记录"""
+    url = models.CharField(max_length=500, verbose_name='访问URL')
+    path = models.CharField(max_length=500, verbose_name='访问路径')
+    ip_address = models.GenericIPAddressField(verbose_name='IP地址')
+    user_agent = models.TextField(blank=True, verbose_name='用户代理')
+    referer = models.CharField(max_length=500, blank=True, verbose_name='来源页面')
+    session_key = models.CharField(max_length=40, blank=True, verbose_name='会话密钥')
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='访问用户'
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name='访问时间')
+    
+    # 访问统计字段
+    is_unique_visit = models.BooleanField(default=False, verbose_name='是否独立访问')
+    visit_date = models.DateField(verbose_name='访问日期')
+    
+    class Meta:
+        verbose_name = '页面访问记录'
+        verbose_name_plural = '页面访问记录'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['-timestamp']),
+            models.Index(fields=['path', 'visit_date']),
+            models.Index(fields=['ip_address', 'visit_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.path} - {self.ip_address} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+    
+    def save(self, *args, **kwargs):
+        if not self.visit_date:
+            self.visit_date = self.timestamp.date() if self.timestamp else timezone.now().date()
+        super().save(*args, **kwargs)
+
+
+class DailyVisitStats(models.Model):
+    """每日访问统计"""
+    date = models.DateField(unique=True, verbose_name='日期')
+    total_visits = models.IntegerField(default=0, verbose_name='总访问量')
+    unique_visitors = models.IntegerField(default=0, verbose_name='独立访客数')
+    unique_ips = models.IntegerField(default=0, verbose_name='独立IP数')
+    
+    class Meta:
+        verbose_name = '每日访问统计'
+        verbose_name_plural = '每日访问统计'
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.date} - 访问:{self.total_visits} 访客:{self.unique_visitors}"
+
+
+class PageVisitStats(models.Model):
+    """页面访问统计"""
+    path = models.CharField(max_length=500, unique=True, verbose_name='页面路径')
+    total_visits = models.IntegerField(default=0, verbose_name='总访问量')
+    unique_visitors = models.IntegerField(default=0, verbose_name='独立访客数')
+    last_visit = models.DateTimeField(auto_now=True, verbose_name='最后访问时间')
+    
+    class Meta:
+        verbose_name = '页面访问统计'
+        verbose_name_plural = '页面访问统计'
+        ordering = ['-total_visits']
+    
+    def __str__(self):
+        return f"{self.path} - 访问:{self.total_visits}"
