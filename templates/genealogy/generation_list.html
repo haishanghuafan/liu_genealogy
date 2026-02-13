@@ -19,9 +19,9 @@
                 <div class="card-body">
                     <div class="display-4 text-primary mb-2">{{ generation.number }}</div>
                     <h5 class="card-title serif">第{{ generation.number }}世</h5>
-                    {% if generation.name %}
+                    {% comment %} {% if generation.name %}
                     <p class="card-text text-muted">{{ generation.name }}</p>
-                    {% endif %}
+                    {% endif %} {% endcomment %}
                     <p class="card-text">
                         <span class="badge bg-primary">{{ generation.person_count }}人</span>
                     </p>

@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container">
-    <div class="breadcrumb mb-4">
+    <div class="breadcrumb mb-3">
         <li class="breadcrumb-item"><a href="{% url 'genealogy:home' %}">首页</a></li>
         <li class="breadcrumb-item"><a href="{% url 'genealogy:management' %}">数据管理</a></li>
         <li class="breadcrumb-item active">{{ page_title }}</li>
@@ -12,14 +12,14 @@
 
     <div class="card">
         <div class="card-header">
-            <h3 class="mb-0"><i class="bi bi-person-plus me-2"></i>{{ page_title }}</h3>
+            <h4 class="mb-0"><i class="bi bi-person-plus me-2"></i>{{ page_title }}</h4>
         </div>
-        <div class="card-body">
+        <div class="card-body py-3">
             <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
                 {% csrf_token %}
                 
-                <h5 class="mb-3 text-primary">基本信息</h5>
-                <div class="row mb-3">
+                <h6 class="text-primary mb-2">基本信息</h6>
+                <div class="row g-2 mb-2">
                     <div class="col-md-4">
                         <label for="id_name" class="form-label">姓名 <span class="text-danger">*</span></label>
                         {{ form.name }}
@@ -37,7 +37,7 @@
                     </div>
                 </div>
                 
-                <div class="row mb-3">
+                <div class="row g-2 mb-2">
                     <div class="col-md-4">
                         <label for="id_alias" class="form-label">别名</label>
                         {{ form.alias }}
@@ -52,7 +52,7 @@
                     </div>
                 </div>
                 
-                <div class="row mb-3">
+                <div class="row g-2 mb-2">
                     <div class="col-md-6">
                         <label for="id_generation" class="form-label">世代</label>
                         {{ form.generation }}
@@ -63,7 +63,7 @@
                     </div>
                 </div>
                 
-                <div class="row mb-3">
+                <div class="row g-2 mb-2">
                     <div class="col-md-6">
                         <label for="id_father" class="form-label">父亲</label>
                         {{ form.father }}
@@ -74,20 +74,58 @@
                     </div>
                 </div>
                 
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="form-check">
-                            {{ form.is_outsider }}
-                            <label for="id_is_outsider" class="form-check-label">
-                                是否为外族配偶
-                            </label>
+                <div class="mb-2">
+                    <div class="form-check">
+                        {{ form.is_outsider }}
+                        <label for="id_is_outsider" class="form-check-label">
+                            是否为外族配偶
+                        </label>
+                    </div>
+                </div>
+                
+                <hr class="my-2">
+                <h6 class="text-primary mb-2">子女信息</h6>
+                
+                {% if children %}
+                <div class="card mb-2">
+                    <div class="card-header bg-light py-2">
+                        <small class="mb-0"><i class="bi bi-people me-1"></i>现有子女</small>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for child in children %}
+                        <li class="list-group-item py-2 d-flex justify-content-between align-items-center">
+                            <span>
+                                <i class="bi bi-person me-1"></i>{{ child.name }}
+                                <span class="badge bg-{% if child.gender == 'M' %}primary{% else %}danger{% endif %} ms-1">
+                                    {% if child.gender == 'M' %}男{% else %}女{% endif %}
+                                </span>
+                            </span>
+                            <a href="{% url 'genealogy:person_update' child.pk %}" class="btn btn-sm btn-outline-primary py-0 px-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="card bg-light mb-2">
+                    <div class="card-body py-2">
+                        <small class="text-muted"><i class="bi bi-plus-circle me-1"></i>添加新子女</small>
+                        <div class="row g-1 mt-1">
+                            <div class="col-md-6">
+                                {{ form.new_child_name }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.new_child_gender }}
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <hr class="my-4">
-                <h5 class="mb-3 text-primary">生卒信息</h5>
-                <div class="row mb-3">
+                <hr class="my-2">
+                <h6 class="text-primary mb-2">生卒信息</h6>
+                <div class="row g-2 mb-2">
                     <div class="col-md-4">
                         <label for="id_birth_year" class="form-label">出生年份</label>
                         {{ form.birth_year }}
@@ -102,9 +140,9 @@
                     </div>
                 </div>
                 
-                <hr class="my-4">
-                <h5 class="mb-3 text-primary">墓葬信息</h5>
-                <div class="row mb-3">
+                <hr class="my-2">
+                <h6 class="text-primary mb-2">墓葬信息</h6>
+                <div class="row g-2 mb-2">
                     <div class="col-md-4">
                         <label for="id_burial_place" class="form-label">葬地</label>
                         {{ form.burial_place }}
@@ -119,80 +157,37 @@
                     </div>
                 </div>
                 
-                <hr class="my-4">
-                <h5 class="mb-3 text-primary">生平资料</h5>
-                <div class="mb-3">
+                <hr class="my-2">
+                <h6 class="text-primary mb-2">生平资料</h6>
+                <div class="mb-2">
                     <label for="id_biography" class="form-label">生平简介</label>
                     {{ form.biography }}
                 </div>
                 
-                <div class="mb-3">
+                <div class="mb-2">
                     <label for="id_achievements" class="form-label">主要事迹</label>
                     {{ form.achievements }}
                 </div>
                 
-                <div class="mb-3">
+                <div class="mb-2">
                     <label for="id_descendants_location" class="form-label">后裔分布</label>
-                    {{ form.descendants_location }}</div>
-                
-                <hr class="my-4">
-                <h5 class="mb-3 text-primary">子女信息</h5>
-                
-                {% if children %}
-                <div class="card mb-3">
-                    <div class="card-header bg-light">
-                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>现有子女</h6>
-                    </div>
-                    <ul class="list-group list-group-flush">
-                        {% for child in children %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>
-                                <i class="bi bi-person me-2"></i>{{ child.name }}
-                                <span class="badge bg-{% if child.gender == 'M' %}primary{% else %}danger{% endif %} ms-2">
-                                    {% if child.gender == 'M' %}男{% else %}女{% endif %}
-                                </span>
-                            </span>
-                            <a href="{% url 'genealogy:person_update' child.pk %}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> 编辑
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-                
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <h6 class="card-title"><i class="bi bi-plus-circle me-2"></i>添加新子女</h6>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label for="id_new_child_name" class="form-label">子女姓名</label>
-                                {{ form.new_child_name }}
-                                <small class="form-text text-muted">输入姓名添加为新子女</small>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="id_new_child_gender" class="form-label">性别</label>
-                                {{ form.new_child_gender }}
-                            </div>
-                        </div>
-                        <small class="text-info"><i class="bi bi-info-circle me-1"></i>如果输入的子女姓名已存在，请先在人物列表中查找并编辑现有人物</small>
-                    </div>
+                    {{ form.descendants_location }}
                 </div>
                 
-                <hr class="my-4">
-                <h5 class="mb-3 text-primary">其他信息</h5>
-                <div class="mb-3">
+                <hr class="my-2">
+                <h6 class="text-primary mb-2">其他信息</h6>
+                <div class="mb-2">
                     <label for="id_notes" class="form-label">备注</label>
                     {{ form.notes }}
                 </div>
                 
-                <div class="mb-3">
+                <div class="mb-2">
                     <label for="id_avatar" class="form-label">头像</label>
                     {{ form.avatar }}
                     <small class="form-text text-muted">支持 JPG、JPEG、PNG、GIF、WebP 格式，最大 5MB</small>
                 </div>
                 
-                <div class="d-flex justify-content-between mt-4">
+                <div class="d-flex justify-content-between mt-3">
                     <a href="{% url 'genealogy:management' %}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left me-2"></i>返回管理
                     </a>

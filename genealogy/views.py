@@ -185,8 +185,7 @@ class GenerationListView(ListView):
     context_object_name = 'generations'
     
     def get_queryset(self):
-        # 只显示非配偶世代
-        return Generation.objects.filter(is_spouse=False).all()
+        return Generation.objects.filter(is_spouse=False).distinct()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -597,9 +596,9 @@ class PersonForm(forms.ModelForm):
             'burial_place': forms.TextInput(attrs={'class': 'form-control'}),
             'burial_fengshui': forms.TextInput(attrs={'class': 'form-control'}),
             'burial_direction': forms.TextInput(attrs={'class': 'form-control'}),
-            'biography': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'achievements': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'descendants_location': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'biography': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'achievements': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'descendants_location': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'avatar': forms.FileInput(attrs={'class': 'form-control'}),
         }
