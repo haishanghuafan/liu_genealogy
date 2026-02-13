@@ -48,10 +48,6 @@ export.xlsx
 # 忽略AI辅助编程工具continue
 .continue
 
-
-# 忽略数据库文件
-*.sqlite3
-*.db
 # 忽略静态文件和媒体文件
 /static/
 /staticfiles/
@@ -94,3 +90,5 @@ test.*gi
 nohup.out
 ~$*.xlsx
 uwsgi.service
+# 忽略数据库文件
+db.sqlite3

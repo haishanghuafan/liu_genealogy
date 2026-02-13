@@ -30,6 +30,11 @@
                     <a href="{% url 'genealogy:person_list' %}?generation={{ generation.number }}" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-eye me-1"></i>查看人物
                     </a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'genealogy:generation_update' generation.pk %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-pencil me-1"></i>编辑
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

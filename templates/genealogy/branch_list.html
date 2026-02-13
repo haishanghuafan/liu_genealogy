@@ -44,6 +44,11 @@
                     <a href="{{ branch.get_absolute_url }}" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-eye me-1"></i>查看详情
                     </a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'genealogy:branch_update' branch.pk %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-pencil me-1"></i>编辑
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

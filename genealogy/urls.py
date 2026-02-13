@@ -74,4 +74,21 @@ urlpatterns = [
     # 族谱记录
     path('records/', views.GenealogyRecordListView.as_view(), name='record_list'),
     path('record/<int:pk>/', views.GenealogyRecordDetailView.as_view(), name='record_detail'),
+    
+    # 数据管理
+    path('management/', views.ManagementView.as_view(), name='management'),
+    path('person/create/', views.PersonCreateView.as_view(), name='person_create'),
+    path('person/<int:pk>/update/', views.PersonUpdateView.as_view(), name='person_update'),
+    
+    # 世代管理
+    path('generation/create/', views.GenerationCreateView.as_view(), name='generation_create'),
+    path('generation/<int:pk>/update/', views.GenerationUpdateView.as_view(), name='generation_update'),
+    
+    # 支系管理
+    path('branch/create/', views.BranchCreateView.as_view(), name='branch_create'),
+    path('branch/<int:pk>/update/', views.BranchUpdateView.as_view(), name='branch_update'),
+    
+    # 记录管理
+    path('record/create/', views.RecordCreateView.as_view(), name='record_create'),
+    path('record/<int:pk>/update/', views.RecordUpdateView.as_view(), name='record_update'),
 ]

@@ -41,7 +41,7 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # CSRF 信任来源（用于 HTTPS 代理）
-CSRF_TRUSTED_ORIGINS = ['https://liu.pxsk.top']
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://liu.pxsk.top').split(',')
 
 # 信任 X-Forwarded-Proto 头（用于反向代理）
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
