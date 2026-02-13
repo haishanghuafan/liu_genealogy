@@ -610,6 +610,48 @@ class PersonForm(forms.ModelForm):
         self.fields['mother'].queryset = Person.objects.filter(gender='F')
         self.fields['generation'].queryset = Generation.objects.all()
         self.fields['branch'].queryset = Branch.objects.all()
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        new_child_name = cleaned_data.get('new_child_name')
+        new_child_gender = cleaned_data.get('new_child_gender')
+        
+        if new_child_name and not new_child_gender:
+            raise forms.ValidationError('添加子女时必须选择性别')
+        
+        if new_child_gender and not new_child_name:
+            cleaned_data['new_child_gender'] = ''
+        
+        if new_child_name and new_child_gender:
+            if Person.objects.filter(name=new_child_name, gender=new_child_gender).exists():
+                raise forms.ValidationError(f'姓名"{new_child_name}"的{"男性" if new_child_gender == "M" else "女性"}已存在，请查找并编辑现有人物')
+        
+        return cleaned_data
+    
+    def save_child(self, parent, user):
+        """保存新子女的公共方法"""
+        new_child_name = self.cleaned_data.get('new_child_name')
+        new_child_gender = self.cleaned_data.get('new_child_gender')
+        
+        if not new_child_name or not new_child_gender:
+            return None
+        
+        child = Person.objects.create(
+            name=new_child_name,
+            gender=new_child_gender,
+            generation=parent.generation,
+            branch=parent.branch,
+            father=parent if parent.gender == 'M' else None,
+            mother=parent if parent.gender == 'F' else None,
+            created_by=user
+        )
+        
+        if parent.gender == 'M':
+            parent.children_as_father.add(child)
+        else:
+            parent.children_as_mother.add(child)
+        
+        return child
 
 
 class PersonCreateView(LoginRequiredMixin, CreateView):
@@ -630,26 +672,7 @@ class PersonCreateView(LoginRequiredMixin, CreateView):
     
     def form_valid(self, form):
         response = super().form_valid(form)
-        
-        new_child_name = form.cleaned_data.get('new_child_name')
-        new_child_gender = form.cleaned_data.get('new_child_gender')
-        
-        if new_child_name:
-            child = Person.objects.create(
-                name=new_child_name,
-                gender=new_child_gender,
-                generation=self.object.generation,
-                branch=self.object.branch,
-                father=self.object if self.object.gender == 'M' else None,
-                mother=self.object if self.object.gender == 'F' else None,
-                created_by=self.request.user
-            )
-            
-            if self.object.gender == 'M':
-                self.object.children_as_father.add(child)
-            else:
-                self.object.children_as_mother.add(child)
-        
+        form.save_child(self.object, self.request.user)
         return response
 
 
@@ -676,26 +699,7 @@ class PersonUpdateView(LoginRequiredMixin, UpdateView):
     
     def form_valid(self, form):
         response = super().form_valid(form)
-        
-        new_child_name = form.cleaned_data.get('new_child_name')
-        new_child_gender = form.cleaned_data.get('new_child_gender')
-        
-        if new_child_name:
-            child = Person.objects.create(
-                name=new_child_name,
-                gender=new_child_gender,
-                generation=self.object.generation,
-                branch=self.object.branch,
-                father=self.object if self.object.gender == 'M' else None,
-                mother=self.object if self.object.gender == 'F' else None,
-                created_by=self.request.user
-            )
-            
-            if self.object.gender == 'M':
-                self.object.children_as_father.add(child)
-            else:
-                self.object.children_as_mother.add(child)
-        
+        form.save_child(self.object, self.request.user)
         return response
 
 
