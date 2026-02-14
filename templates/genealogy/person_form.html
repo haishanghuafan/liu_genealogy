@@ -84,6 +84,50 @@
                 </div>
                 
                 <hr class="my-2">
+                <h6 class="text-primary mb-2">配偶信息</h6>
+                
+                {% if spouses %}
+                <div class="card mb-2">
+                    <div class="card-header bg-light py-2">
+                        <small class="mb-0"><i class="bi bi-heart me-1"></i>现有配偶</small>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for spouse_info in spouses %}
+                        <li class="list-group-item py-2 d-flex justify-content-between align-items-center">
+                            <span>
+                                <i class="bi bi-person-heart me-1"></i>{{ spouse_info.person.name }}
+                                <span class="badge bg-{% if spouse_info.person.gender == 'M' %}primary{% else %}danger{% endif %} ms-1">
+                                    {% if spouse_info.person.gender == 'M' %}夫{% else %}妻{% endif %}
+                                </span>
+                                <span class="badge bg-secondary ms-1">{{ spouse_info.relation_type }}</span>
+                            </span>
+                            <a href="{% url 'genealogy:person_update' spouse_info.person.pk %}" class="btn btn-sm btn-outline-primary py-0 px-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="card bg-light mb-2">
+                    <div class="card-body py-2">
+                        <small class="text-muted"><i class="bi bi-plus-circle me-1"></i>添加新配偶</small>
+                        <div class="row g-1 mt-1">
+                            <div class="col-md-4">
+                                {{ form.new_spouse_name }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.new_spouse_gender }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.new_spouse_relation_type }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-2">
                 <h6 class="text-primary mb-2">子女信息</h6>
                 
                 {% if children %}

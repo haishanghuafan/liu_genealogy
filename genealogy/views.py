@@ -568,6 +568,25 @@ class PersonForm(forms.ModelForm):
         label='新增子女性别',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    new_spouse_name = forms.CharField(
+        max_length=100, 
+        required=False, 
+        label='新增配偶姓名',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '输入姓名添加新配偶'})
+    )
+    new_spouse_gender = forms.ChoiceField(
+        choices=Person.GENDER_CHOICES,
+        required=False,
+        label='新增配偶性别',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    new_spouse_relation_type = forms.ChoiceField(
+        choices=SpouseRelation.RELATION_TYPE_CHOICES,
+        required=False,
+        label='关系类型',
+        initial='marriage',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     
     class Meta:
         model = Person
@@ -651,6 +670,51 @@ class PersonForm(forms.ModelForm):
             parent.children_as_mother.add(child)
         
         return child
+    
+    def save_spouse(self, person, user):
+        """保存新配偶的公共方法"""
+        new_spouse_name = self.cleaned_data.get('new_spouse_name')
+        new_spouse_gender = self.cleaned_data.get('new_spouse_gender')
+        new_spouse_relation_type = self.cleaned_data.get('new_spouse_relation_type')
+        
+        if not new_spouse_name or not new_spouse_gender:
+            return None
+        
+        spouse_gender_opposite = 'F' if person.gender == 'M' else 'M'
+        
+        if new_spouse_gender != spouse_gender_opposite:
+            return None
+        
+        existing_spouse = Person.objects.filter(name=new_spouse_name, gender=new_spouse_gender).first()
+        
+        if existing_spouse:
+            spouse = existing_spouse
+        else:
+            spouse = Person.objects.create(
+                name=new_spouse_name,
+                gender=new_spouse_gender,
+                generation=person.generation,
+                branch=person.branch,
+                is_outsider=True,
+                created_by=user
+            )
+        
+        relation_type = new_spouse_relation_type or 'marriage'
+        
+        if person.gender == 'M':
+            SpouseRelation.objects.get_or_create(
+                husband=person,
+                wife=spouse,
+                defaults={'relation_type': relation_type}
+            )
+        else:
+            SpouseRelation.objects.get_or_create(
+                husband=spouse,
+                wife=person,
+                defaults={'relation_type': relation_type}
+            )
+        
+        return spouse
 
 
 class PersonCreateView(LoginRequiredMixin, CreateView):
@@ -667,15 +731,17 @@ class PersonCreateView(LoginRequiredMixin, CreateView):
         context['page_title'] = '创建人物'
         context['submit_text'] = '创建'
         context['children'] = []
+        context['spouses'] = []
         return context
     
     def form_valid(self, form):
         response = super().form_valid(form)
         form.save_child(self.object, self.request.user)
+        form.save_spouse(self.object, self.request.user)
         return response
 
 
-class PersonUpdateView(LoginRequiredMixin, UpdateView):
+class PersonUpdateView(LoginRequiredMixin, PersonOwnerMixin, UpdateView):
     """编辑人物视图 - 仅管理员可用"""
     model = Person
     form_class = PersonForm
@@ -694,11 +760,21 @@ class PersonUpdateView(LoginRequiredMixin, UpdateView):
         children.update(self.object.children_as_mother.all())
         context['children'] = sorted(children, key=lambda x: (x.order, x.id))
         
+        spouses = []
+        if self.object.gender == 'M':
+            for rel in self.object.husband_relations.all():
+                spouses.append({'person': rel.wife, 'relation_type': rel.get_relation_type_display(), 'relation': rel})
+        else:
+            for rel in self.object.wife_relations.all():
+                spouses.append({'person': rel.husband, 'relation_type': rel.get_relation_type_display(), 'relation': rel})
+        context['spouses'] = spouses
+        
         return context
     
     def form_valid(self, form):
         response = super().form_valid(form)
         form.save_child(self.object, self.request.user)
+        form.save_spouse(self.object, self.request.user)
         return response
 
 
