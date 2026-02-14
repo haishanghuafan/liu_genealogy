@@ -556,17 +556,14 @@ class UploadMediaView(LoginRequiredMixin, View):
 
 class PersonForm(forms.ModelForm):
     """人物表单"""
-    new_child_name = forms.CharField(
-        max_length=100, 
+    new_children = forms.CharField(
         required=False, 
-        label='新增子女姓名',
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '输入姓名添加新子女'})
-    )
-    new_child_gender = forms.ChoiceField(
-        choices=Person.GENDER_CHOICES,
-        required=False,
-        label='新增子女性别',
-        widget=forms.Select(attrs={'class': 'form-select'})
+        label='新增子女',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 
+            'rows': 3,
+            'placeholder': '每行一个姓名，格式：姓名,性别（如：张三,男 或 李四,女）'
+        })
     )
     new_spouse_name = forms.CharField(
         max_length=100, 
@@ -631,45 +628,97 @@ class PersonForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super().clean()
-        new_child_name = cleaned_data.get('new_child_name')
-        new_child_gender = cleaned_data.get('new_child_gender')
+        new_children = cleaned_data.get('new_children')
         
-        if new_child_name and not new_child_gender:
-            raise forms.ValidationError('添加子女时必须选择性别')
+        children_list = []
+        if new_children:
+            for line in new_children.strip().split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                if ',' in line:
+                    parts = line.split(',', 1)
+                    name = parts[0].strip()
+                    gender_str = parts[1].strip().upper() if len(parts) > 1 else ''
+                    if gender_str in ['男', 'M']:
+                        gender = 'M'
+                    elif gender_str in ['女', 'F']:
+                        gender = 'F'
+                    else:
+                        raise forms.ValidationError(f'性别"{parts[1].strip()}"无效，请使用"男/M"或"女/F"')
+                else:
+                    name = line.strip()
+                    gender = None
+                
+                if not name:
+                    continue
+                
+                if not gender:
+                    raise forms.ValidationError(f'姓名"{name}"缺少性别信息，请使用"姓名,性别"格式')
+                
+                if Person.objects.filter(name=name, gender=gender).exists():
+                    gender_desc = "男性" if gender == 'M' else "女性"
+                    raise forms.ValidationError(f'姓名"{name}"的{gender_desc}已存在，请查找并编辑现有人物')
+                children_list.append({'name': name, 'gender': gender})
         
-        if new_child_gender and not new_child_name:
-            cleaned_data['new_child_gender'] = ''
-        
-        if new_child_name and new_child_gender:
-            if Person.objects.filter(name=new_child_name, gender=new_child_gender).exists():
-                raise forms.ValidationError(f'姓名"{new_child_name}"的{"男性" if new_child_gender == "M" else "女性"}已存在，请查找并编辑现有人物')
-        
+        cleaned_data['children_list'] = children_list
         return cleaned_data
     
     def save_child(self, parent, user):
-        """保存新子女的公共方法"""
-        new_child_name = self.cleaned_data.get('new_child_name')
-        new_child_gender = self.cleaned_data.get('new_child_gender')
+        """保存新子女的公共方法（批量）"""
+        from django.db import IntegrityError, transaction
         
-        if not new_child_name or not new_child_gender:
-            return None
+        children_list = self.cleaned_data.get('children_list', [])
         
-        child = Person.objects.create(
-            name=new_child_name,
-            gender=new_child_gender,
-            generation=parent.generation,
-            branch=parent.branch,
-            father=parent if parent.gender == 'M' else None,
-            mother=parent if parent.gender == 'F' else None,
-            created_by=user
-        )
+        if not children_list:
+            return []
         
-        if parent.gender == 'M':
-            parent.children_as_father.add(child)
-        else:
-            parent.children_as_mother.add(child)
+        next_generation = None
+        if parent.generation:
+            next_generation = Generation.objects.filter(
+                number=parent.generation.number + 1
+            ).first()
+            
+            if not next_generation:
+                try:
+                    next_generation = Generation.objects.create(
+                        number=parent.generation.number + 1,
+                        name=f'第{parent.generation.number + 1}世'
+                    )
+                except IntegrityError:
+                    next_generation = Generation.objects.filter(
+                        number=parent.generation.number + 1
+                    ).first()
+                except Exception:
+                    next_generation = parent.generation
         
-        return child
+        created_children = []
+        for child_data in children_list:
+            name = child_data.get('name')
+            gender = child_data.get('gender')
+            
+            if not name or not gender:
+                continue
+            
+            child = Person.objects.create(
+                name=name,
+                gender=gender,
+                generation=next_generation,
+                branch=parent.branch,
+                father=parent if parent.gender == 'M' else None,
+                mother=parent if parent.gender == 'F' else None,
+                created_by=user
+            )
+            
+            if parent.gender == 'M':
+                parent.children_as_father.add(child)
+            else:
+                parent.children_as_mother.add(child)
+            
+            created_children.append(child)
+        
+        return created_children
     
     def save_spouse(self, person, user):
         """保存新配偶的公共方法"""

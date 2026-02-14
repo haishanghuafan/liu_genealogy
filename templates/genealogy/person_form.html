@@ -155,15 +155,13 @@
                 
                 <div class="card bg-light mb-2">
                     <div class="card-body py-2">
-                        <small class="text-muted"><i class="bi bi-plus-circle me-1"></i>添加新子女</small>
+                        <small class="text-muted"><i class="bi bi-plus-circle me-1"></i>批量添加子女（每行一个，格式：姓名,性别）</small>
                         <div class="row g-1 mt-1">
-                            <div class="col-md-6">
-                                {{ form.new_child_name }}
-                            </div>
-                            <div class="col-md-4">
-                                {{ form.new_child_gender }}
+                            <div class="col-12">
+                                {{ form.new_children }}
                             </div>
                         </div>
+                        <small class="text-muted d-block mt-1">例如：张三,男 或 李四,女（子女将自动设为下一世）</small>
                     </div>
                 </div>
                 
