@@ -467,18 +467,19 @@
                     <h5 class="mb-0"><i class="bi bi-arrow-down me-2"></i>子女</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
+                    <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-2">
                         {% for child in children %}
-                        <div class="col-md-6 mb-2">
-                            <div class="d-flex align-items-center">
-                                {% if child.gender == 'M' %}
-                                <i class="bi bi-person me-2 text-primary"></i>
-                                {% else %}
-                                <i class="bi bi-person me-2" style="color: #C71585;"></i>
-                                {% endif %}
-                                <a href="{{ child.get_absolute_url }}">{{ child.name }}</a>
-                                <span class="badge bg-light text-dark ms-2">第{{ child.generation.number }}世</span>
-                            </div>
+                        <div class="col">
+                            <a href="{{ child.get_absolute_url }}" class="d-block p-2 bg-light rounded text-decoration-none text-dark hover:bg-primary hover:text-white transition-all">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    {% if child.gender == 'M' %}
+                                    <i class="bi bi-person me-1 text-primary"></i>
+                                    {% else %}
+                                    <i class="bi bi-person me-1" style="color: #C71585;"></i>
+                                    {% endif %}
+                                    <span class="text-truncate">{{ child.name }}</span>
+                                </div>
+                            </a>
                         </div>
                         {% endfor %}
                     </div>
@@ -493,17 +494,19 @@
                     <h5 class="mb-0"><i class="bi bi-people me-2"></i>兄弟姐妹</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
+                    <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-2">
                         {% for sibling in siblings %}
-                        <div class="col-md-6 mb-2">
-                            <div class="d-flex align-items-center">
-                                {% if sibling.gender == 'M' %}
-                                <i class="bi bi-person me-2 text-primary"></i>
-                                {% else %}
-                                <i class="bi bi-person me-2" style="color: #C71585;"></i>
-                                {% endif %}
-                                <a href="{{ sibling.get_absolute_url }}">{{ sibling.name }}</a>
-                            </div>
+                        <div class="col">
+                            <a href="{{ sibling.get_absolute_url }}" class="d-block p-2 bg-light rounded text-decoration-none text-dark hover:bg-primary hover:text-white transition-all">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    {% if sibling.gender == 'M' %}
+                                    <i class="bi bi-person me-1 text-primary"></i>
+                                    {% else %}
+                                    <i class="bi bi-person me-1" style="color: #C71585;"></i>
+                                    {% endif %}
+                                    <span class="text-truncate">{{ sibling.name }}</span>
+                                </div>
+                            </a>
                         </div>
                         {% endfor %}
                     </div>

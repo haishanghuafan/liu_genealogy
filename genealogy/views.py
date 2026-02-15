@@ -562,7 +562,7 @@ class PersonForm(forms.ModelForm):
         widget=forms.Textarea(attrs={
             'class': 'form-control', 
             'rows': 3,
-            'placeholder': '每行一个姓名，格式：姓名,性别（如：张三,男 或 李四,女）'
+            'placeholder': '每行一个姓名，格式：姓名,性别（用英文逗号，如：张三,男 或 李四,女）'
         })
     )
     new_spouse_name = forms.CharField(
@@ -655,7 +655,7 @@ class PersonForm(forms.ModelForm):
                     continue
                 
                 if not gender:
-                    raise forms.ValidationError(f'姓名"{name}"缺少性别信息，请使用"姓名,性别"格式')
+                    raise forms.ValidationError(f'姓名"{name}"缺少性别信息，请使用"姓名,性别"格式（用英文逗号）')
                 
                 if Person.objects.filter(name=name, gender=gender).exists():
                     gender_desc = "男性" if gender == 'M' else "女性"
@@ -667,7 +667,7 @@ class PersonForm(forms.ModelForm):
     
     def save_child(self, parent, user):
         """保存新子女的公共方法（批量）"""
-        from django.db import IntegrityError, transaction
+        from django.db import IntegrityError
         
         children_list = self.cleaned_data.get('children_list', [])
         
@@ -675,6 +675,7 @@ class PersonForm(forms.ModelForm):
             return []
         
         next_generation = None
+        
         if parent.generation:
             next_generation = Generation.objects.filter(
                 number=parent.generation.number + 1
@@ -691,7 +692,15 @@ class PersonForm(forms.ModelForm):
                         number=parent.generation.number + 1
                     ).first()
                 except Exception:
-                    next_generation = parent.generation
+                    pass
+        
+        if not next_generation:
+            max_gen = Generation.objects.order_by('-number').first()
+            next_gen_number = (max_gen.number + 1) if max_gen else 1
+            next_generation = Generation.objects.create(
+                number=next_gen_number,
+                name=f'第{next_gen_number}世'
+            )
         
         created_children = []
         for child_data in children_list:
@@ -784,9 +793,9 @@ class PersonCreateView(LoginRequiredMixin, CreateView):
         return context
     
     def form_valid(self, form):
+        form.save_child(form.instance, self.request.user)
+        form.save_spouse(form.instance, self.request.user)
         response = super().form_valid(form)
-        form.save_child(self.object, self.request.user)
-        form.save_spouse(self.object, self.request.user)
         return response
 
 
@@ -821,9 +830,9 @@ class PersonUpdateView(LoginRequiredMixin, PersonOwnerMixin, UpdateView):
         return context
     
     def form_valid(self, form):
+        form.save_child(form.instance, self.request.user)
+        form.save_spouse(form.instance, self.request.user)
         response = super().form_valid(form)
-        form.save_child(self.object, self.request.user)
-        form.save_spouse(self.object, self.request.user)
         return response
 
 

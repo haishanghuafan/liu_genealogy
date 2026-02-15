@@ -91,22 +91,24 @@
                     <div class="card-header bg-light py-2">
                         <small class="mb-0"><i class="bi bi-heart me-1"></i>现有配偶</small>
                     </div>
-                    <ul class="list-group list-group-flush">
-                        {% for spouse_info in spouses %}
-                        <li class="list-group-item py-2 d-flex justify-content-between align-items-center">
-                            <span>
-                                <i class="bi bi-person-heart me-1"></i>{{ spouse_info.person.name }}
-                                <span class="badge bg-{% if spouse_info.person.gender == 'M' %}primary{% else %}danger{% endif %} ms-1">
-                                    {% if spouse_info.person.gender == 'M' %}夫{% else %}妻{% endif %}
-                                </span>
-                                <span class="badge bg-secondary ms-1">{{ spouse_info.relation_type }}</span>
-                            </span>
-                            <a href="{% url 'genealogy:person_update' spouse_info.person.pk %}" class="btn btn-sm btn-outline-primary py-0 px-1">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                    <div class="card-body py-2">
+                        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-2">
+                            {% for spouse_info in spouses %}
+                            <div class="col">
+                                <a href="{% url 'genealogy:person_update' spouse_info.person.pk %}" class="d-block p-2 bg-light rounded text-decoration-none text-dark hover:bg-primary hover:text-white transition-all">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-person-heart me-1"></i>
+                                        <span class="text-truncate">{{ spouse_info.person.name }}</span>
+                                        <span class="badge bg-{% if spouse_info.person.gender == 'M' %}primary{% else %}danger{% endif %} ms-1 flex-shrink-0">
+                                            {% if spouse_info.person.gender == 'M' %}夫{% else %}妻{% endif %}
+                                        </span>
+                                        <span class="badge bg-secondary ms-1 flex-shrink-0">{{ spouse_info.relation_type }}</span>
+                                    </div>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
                 
@@ -135,27 +137,29 @@
                     <div class="card-header bg-light py-2">
                         <small class="mb-0"><i class="bi bi-people me-1"></i>现有子女</small>
                     </div>
-                    <ul class="list-group list-group-flush">
-                        {% for child in children %}
-                        <li class="list-group-item py-2 d-flex justify-content-between align-items-center">
-                            <span>
-                                <i class="bi bi-person me-1"></i>{{ child.name }}
-                                <span class="badge bg-{% if child.gender == 'M' %}primary{% else %}danger{% endif %} ms-1">
-                                    {% if child.gender == 'M' %}男{% else %}女{% endif %}
-                                </span>
-                            </span>
-                            <a href="{% url 'genealogy:person_update' child.pk %}" class="btn btn-sm btn-outline-primary py-0 px-1">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
+                    <div class="card-body py-2">
+                        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-2">
+                            {% for child in children %}
+                            <div class="col">
+                                <a href="{% url 'genealogy:person_update' child.pk %}" class="d-block p-2 bg-light rounded text-decoration-none text-dark hover:bg-primary hover:text-white transition-all">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-person me-1"></i>
+                                        <span class="text-truncate">{{ child.name }}</span>
+                                        <span class="badge bg-{% if child.gender == 'M' %}primary{% else %}danger{% endif %} ms-1 flex-shrink-0">
+                                            {% if child.gender == 'M' %}男{% else %}女{% endif %}
+                                        </span>
+                                    </div>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
                 
                 <div class="card bg-light mb-2">
                     <div class="card-body py-2">
-                        <small class="text-muted"><i class="bi bi-plus-circle me-1"></i>批量添加子女（每行一个，格式：姓名,性别）</small>
+                        <small class="text-muted"><i class="bi bi-plus-circle me-1"></i>批量添加子女（每行一个，格式：姓名,性别，用英文逗号分隔）</small>
                         <div class="row g-1 mt-1">
                             <div class="col-12">
                                 {{ form.new_children }}
