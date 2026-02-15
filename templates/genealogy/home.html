@@ -133,18 +133,27 @@
                     <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>最近更新</h5>
                 </div>
                 <div class="card-body">
-                    <div class="list-group list-group-flush">
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
                         {% for person in recent_persons %}
-                        <a href="{{ person.get_absolute_url }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="generation-badge">第{{ person.generation.number }}世</span>
-                                <strong>{{ person.name }}</strong>
-                                {% if person.courtesy_name %}
-                                <small class="text-muted">（字{{ person.courtesy_name }}）</small>
-                                {% endif %}
-                            </div>
-                            <small class="text-muted">{{ person.updated_at|date:"Y-m-d" }}</small>
-                        </a>
+                        <div class="col">
+                            <a href="{{ person.get_absolute_url }}" class="d-block p-3 bg-light rounded text-decoration-none text-dark hover:bg-primary hover:text-white transition-all">
+                                <div class="d-flex align-items-center mb-2">
+                                    {% if person.gender == 'M' %}
+                                    <i class="bi bi-person me-2 text-primary"></i>
+                                    {% else %}
+                                    <i class="bi bi-person me-2" style="color: #C71585;"></i>
+                                    {% endif %}
+                                    <span class="badge bg-secondary">第{{ person.generation.number }}世</span>
+                                </div>
+                                <div class="mb-1">
+                                    <strong>{{ person.name }}</strong>
+                                    {% if person.courtesy_name %}
+                                    <small class="text-muted">（字{{ person.courtesy_name }}）</small>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ person.updated_at|date:"Y-m-d" }}</small>
+                            </a>
+                        </div>
                         {% endfor %}
                     </div>
                 </div>

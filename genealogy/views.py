@@ -7,7 +7,11 @@ from django.views.generic import (
     ListView,
     DetailView,
     View,
+    CreateView,
+    UpdateView,
 )
+from django import forms
+from django.urls import reverse_lazy
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm
@@ -181,8 +185,7 @@ class GenerationListView(ListView):
     context_object_name = 'generations'
     
     def get_queryset(self):
-        # 只显示非配偶世代
-        return Generation.objects.filter(is_spouse=False).all()
+        return Generation.objects.filter(is_spouse=False).distinct()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -549,3 +552,434 @@ class UploadMediaView(LoginRequiredMixin, View):
             'success': success,
             'error': error
         })
+
+
+class PersonForm(forms.ModelForm):
+    """人物表单"""
+    new_children = forms.CharField(
+        required=False, 
+        label='新增子女',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 
+            'rows': 3,
+            'placeholder': '每行一个姓名，格式：姓名,性别（用英文逗号，如：张三,男 或 李四,女）'
+        })
+    )
+    new_spouse_name = forms.CharField(
+        max_length=100, 
+        required=False, 
+        label='新增配偶姓名',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '输入姓名添加新配偶'})
+    )
+    new_spouse_gender = forms.ChoiceField(
+        choices=Person.GENDER_CHOICES,
+        required=False,
+        label='新增配偶性别',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    new_spouse_relation_type = forms.ChoiceField(
+        choices=SpouseRelation.RELATION_TYPE_CHOICES,
+        required=False,
+        label='关系类型',
+        initial='marriage',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    class Meta:
+        model = Person
+        fields = [
+            'name', 'courtesy_name', 'art_name', 'alias', 'generation_char',
+            'gender', 'is_outsider', 'generation', 'father', 'mother', 'branch',
+            'birth_year', 'death_year', 'birth_place',
+            'burial_place', 'burial_fengshui', 'burial_direction',
+            'biography', 'achievements', 'descendants_location', 'notes', 'avatar'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'courtesy_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'art_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'alias': forms.TextInput(attrs={'class': 'form-control'}),
+            'generation_char': forms.TextInput(attrs={'class': 'form-control'}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'is_outsider': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'generation': forms.Select(attrs={'class': 'form-select'}),
+            'father': forms.Select(attrs={'class': 'form-select'}),
+            'mother': forms.Select(attrs={'class': 'form-select'}),
+            'branch': forms.Select(attrs={'class': 'form-select'}),
+            'birth_year': forms.NumberInput(attrs={'class': 'form-control'}),
+            'death_year': forms.NumberInput(attrs={'class': 'form-control'}),
+            'birth_place': forms.TextInput(attrs={'class': 'form-control'}),
+            'burial_place': forms.TextInput(attrs={'class': 'form-control'}),
+            'burial_fengshui': forms.TextInput(attrs={'class': 'form-control'}),
+            'burial_direction': forms.TextInput(attrs={'class': 'form-control'}),
+            'biography': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'achievements': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'descendants_location': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'avatar': forms.FileInput(attrs={'class': 'form-control'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['father'].queryset = Person.objects.filter(gender='M')
+        self.fields['mother'].queryset = Person.objects.filter(gender='F')
+        self.fields['generation'].queryset = Generation.objects.all()
+        self.fields['branch'].queryset = Branch.objects.all()
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        new_children = cleaned_data.get('new_children')
+        
+        children_list = []
+        if new_children:
+            for line in new_children.strip().split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                if ',' in line:
+                    parts = line.split(',', 1)
+                    name = parts[0].strip()
+                    gender_str = parts[1].strip().upper() if len(parts) > 1 else ''
+                    if gender_str in ['男', 'M']:
+                        gender = 'M'
+                    elif gender_str in ['女', 'F']:
+                        gender = 'F'
+                    else:
+                        raise forms.ValidationError(f'性别"{parts[1].strip()}"无效，请使用"男/M"或"女/F"')
+                else:
+                    name = line.strip()
+                    gender = None
+                
+                if not name:
+                    continue
+                
+                if not gender:
+                    raise forms.ValidationError(f'姓名"{name}"缺少性别信息，请使用"姓名,性别"格式（用英文逗号）')
+                
+                if Person.objects.filter(name=name, gender=gender).exists():
+                    gender_desc = "男性" if gender == 'M' else "女性"
+                    raise forms.ValidationError(f'姓名"{name}"的{gender_desc}已存在，请查找并编辑现有人物')
+                children_list.append({'name': name, 'gender': gender})
+        
+        cleaned_data['children_list'] = children_list
+        return cleaned_data
+    
+    def save_child(self, parent, user):
+        """保存新子女的公共方法（批量）"""
+        from django.db import IntegrityError
+        
+        children_list = self.cleaned_data.get('children_list', [])
+        
+        if not children_list:
+            return []
+        
+        next_generation = None
+        
+        if parent.generation:
+            next_generation = Generation.objects.filter(
+                number=parent.generation.number + 1
+            ).first()
+            
+            if not next_generation:
+                try:
+                    next_generation = Generation.objects.create(
+                        number=parent.generation.number + 1,
+                        name=f'第{parent.generation.number + 1}世'
+                    )
+                except IntegrityError:
+                    next_generation = Generation.objects.filter(
+                        number=parent.generation.number + 1
+                    ).first()
+                except Exception:
+                    pass
+        
+        if not next_generation:
+            max_gen = Generation.objects.order_by('-number').first()
+            next_gen_number = (max_gen.number + 1) if max_gen else 1
+            next_generation = Generation.objects.create(
+                number=next_gen_number,
+                name=f'第{next_gen_number}世'
+            )
+        
+        created_children = []
+        for child_data in children_list:
+            name = child_data.get('name')
+            gender = child_data.get('gender')
+            
+            if not name or not gender:
+                continue
+            
+            child = Person.objects.create(
+                name=name,
+                gender=gender,
+                generation=next_generation,
+                branch=parent.branch,
+                father=parent if parent.gender == 'M' else None,
+                mother=parent if parent.gender == 'F' else None,
+                created_by=user
+            )
+            
+            if parent.gender == 'M':
+                parent.children_as_father.add(child)
+            else:
+                parent.children_as_mother.add(child)
+            
+            created_children.append(child)
+        
+        return created_children
+    
+    def save_spouse(self, person, user):
+        """保存新配偶的公共方法"""
+        new_spouse_name = self.cleaned_data.get('new_spouse_name')
+        new_spouse_gender = self.cleaned_data.get('new_spouse_gender')
+        new_spouse_relation_type = self.cleaned_data.get('new_spouse_relation_type')
+        
+        if not new_spouse_name or not new_spouse_gender:
+            return None
+        
+        spouse_gender_opposite = 'F' if person.gender == 'M' else 'M'
+        
+        if new_spouse_gender != spouse_gender_opposite:
+            return None
+        
+        existing_spouse = Person.objects.filter(name=new_spouse_name, gender=new_spouse_gender).first()
+        
+        if existing_spouse:
+            spouse = existing_spouse
+        else:
+            spouse = Person.objects.create(
+                name=new_spouse_name,
+                gender=new_spouse_gender,
+                generation=person.generation,
+                branch=person.branch,
+                is_outsider=True,
+                created_by=user
+            )
+        
+        relation_type = new_spouse_relation_type or 'marriage'
+        
+        if person.gender == 'M':
+            SpouseRelation.objects.get_or_create(
+                husband=person,
+                wife=spouse,
+                defaults={'relation_type': relation_type}
+            )
+        else:
+            SpouseRelation.objects.get_or_create(
+                husband=spouse,
+                wife=person,
+                defaults={'relation_type': relation_type}
+            )
+        
+        return spouse
+
+
+class PersonCreateView(LoginRequiredMixin, CreateView):
+    """创建人物视图 - 仅管理员可用"""
+    model = Person
+    form_class = PersonForm
+    template_name = 'genealogy/person_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:person_detail', kwargs={'pk': self.object.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '创建人物'
+        context['submit_text'] = '创建'
+        context['children'] = []
+        context['spouses'] = []
+        return context
+    
+    def form_valid(self, form):
+        form.save_child(form.instance, self.request.user)
+        form.save_spouse(form.instance, self.request.user)
+        response = super().form_valid(form)
+        return response
+
+
+class PersonUpdateView(LoginRequiredMixin, PersonOwnerMixin, UpdateView):
+    """编辑人物视图 - 仅管理员可用"""
+    model = Person
+    form_class = PersonForm
+    template_name = 'genealogy/person_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:person_detail', kwargs={'pk': self.object.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '编辑人物'
+        context['submit_text'] = '保存修改'
+        
+        children = set()
+        children.update(self.object.children_as_father.all())
+        children.update(self.object.children_as_mother.all())
+        context['children'] = sorted(children, key=lambda x: (x.order, x.id))
+        
+        spouses = []
+        if self.object.gender == 'M':
+            for rel in self.object.husband_relations.all():
+                spouses.append({'person': rel.wife, 'relation_type': rel.get_relation_type_display(), 'relation': rel})
+        else:
+            for rel in self.object.wife_relations.all():
+                spouses.append({'person': rel.husband, 'relation_type': rel.get_relation_type_display(), 'relation': rel})
+        context['spouses'] = spouses
+        
+        return context
+    
+    def form_valid(self, form):
+        form.save_child(form.instance, self.request.user)
+        form.save_spouse(form.instance, self.request.user)
+        response = super().form_valid(form)
+        return response
+
+
+class ManagementView(LoginRequiredMixin, TemplateView):
+    """数据管理首页"""
+    template_name = 'genealogy/management.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_persons'] = Person.objects.count()
+        context['total_generations'] = Generation.objects.filter(is_spouse=False).count()
+        context['total_branches'] = Branch.objects.count()
+        context['total_records'] = GenealogyRecord.objects.count()
+        return context
+
+
+class GenerationForm(forms.ModelForm):
+    class Meta:
+        model = Generation
+        fields = ['number', 'is_spouse', 'name', 'description']
+        widgets = {
+            'number': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_spouse': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+class GenerationCreateView(LoginRequiredMixin, CreateView):
+    model = Generation
+    form_class = GenerationForm
+    template_name = 'genealogy/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:generation_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '创建世代'
+        context['submit_text'] = '创建'
+        return context
+
+
+class GenerationUpdateView(LoginRequiredMixin, UpdateView):
+    model = Generation
+    form_class = GenerationForm
+    template_name = 'genealogy/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:generation_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '编辑世代'
+        context['submit_text'] = '保存修改'
+        return context
+
+
+class BranchForm(forms.ModelForm):
+    class Meta:
+        model = Branch
+        fields = ['name', 'founder', 'description', 'location']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'founder': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'location': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+class BranchCreateView(LoginRequiredMixin, CreateView):
+    model = Branch
+    form_class = BranchForm
+    template_name = 'genealogy/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:branch_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '创建支系'
+        context['submit_text'] = '创建'
+        return context
+
+
+class BranchUpdateView(LoginRequiredMixin, UpdateView):
+    model = Branch
+    form_class = BranchForm
+    template_name = 'genealogy/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:branch_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '编辑支系'
+        context['submit_text'] = '保存修改'
+        return context
+
+
+class RecordForm(forms.ModelForm):
+    class Meta:
+        model = GenealogyRecord
+        fields = ['title', 'content', 'source', 'source_image', 'page_number', 'related_persons', 'notes']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'source': forms.TextInput(attrs={'class': 'form-control'}),
+            'source_image': forms.FileInput(attrs={'class': 'form-control'}),
+            'page_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'related_persons': forms.CheckboxSelectMultiple(),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+class RecordCreateView(LoginRequiredMixin, CreateView):
+    model = GenealogyRecord
+    form_class = RecordForm
+    template_name = 'genealogy/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:record_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '创建记录'
+        context['submit_text'] = '创建'
+        return context
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['related_persons'].queryset = Person.objects.all()
+        return form
+
+
+class RecordUpdateView(LoginRequiredMixin, UpdateView):
+    model = GenealogyRecord
+    form_class = RecordForm
+    template_name = 'genealogy/form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('genealogy:record_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '编辑记录'
+        context['submit_text'] = '保存修改'
+        return context
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['related_persons'].queryset = Person.objects.all()
+        return form

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} - 刘氏乾正公族谱{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'genealogy:home' %}">首页</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'genealogy:management' %}">数据管理</a></li>
+        <li class="breadcrumb-item active">{{ page_title }}</li>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="bi bi-plus-circle me-2"></i>{{ page_title }}</h3>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                {% for field in form %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% if field.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ field.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'genealogy:management' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>返回管理
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>{{ submit_text }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    var forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+})();
+</script>
+{% endblock %}

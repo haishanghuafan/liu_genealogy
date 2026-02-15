@@ -1,8 +1,8 @@
 services:
   web:
     build: .
-    expose:
-      - "8000"
+    ports:
+      - "8001:8000"
     volumes:
       - .:/app
       - ./media:/app/media
@@ -10,7 +10,3 @@ services:
     env_file:
       - .env
     restart: unless-stopped
-
-volumes:
-  media_volume:
-  static_volume:
