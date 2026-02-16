@@ -345,6 +345,11 @@ class SpouseRelation(models.Model):
         ('concubine', '妾室'),
         ('adopted', '继配'),
         ('zhuazhui', '招赘'),
+        ('first', '一房'),
+        ('second', '二房'),
+        ('third', '三房'),
+        ('fourth', '四房'),
+        ('fifth', '五房'),
     ]
     
     husband = models.ForeignKey(

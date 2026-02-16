@@ -249,40 +249,37 @@
                             </div>
                             <div class="tree-connector" style="height: 20px;"></div>
 
-                            <!-- 配偶层 -->
-                            {% if spouse_relations %}
-                            <div class="d-flex justify-content-center mb-4">
-                                {% for relation in spouse_relations %}
-                                {% if person.gender == 'M' %}
-                                <div class="tree-node {% if relation.wife.gender == 'F' %}female{% endif %} {% if not forloop.first %}ml-4{% endif %}">
-                                    <a href="{{ relation.wife.get_absolute_url }}" style="color: white; text-decoration: none;">
-                                        {{ relation.wife.name }}
-                                    </a>
-                                    <small class="d-block">配偶</small>
-                                </div>
-                                {% else %}
-                                <div class="tree-node {% if relation.husband.gender == 'F' %}female{% endif %} {% if not forloop.first %}ml-4{% endif %}">
-                                    <a href="{{ relation.husband.get_absolute_url }}" style="color: white; text-decoration: none;">
-                                        {{ relation.husband.name }}
-                                    </a>
-                                    <small class="d-block">配偶</small>
-                                </div>
-                                {% endif %}
-                                {% endfor %}
-                            </div>
-                            <div class="tree-connector" style="height: 20px;"></div>
-                            {% endif %}
-
-                            <!-- 子女层 -->
-                            {% if children %}
-                            <div class="d-flex flex-wrap justify-content-center">
-                                {% for child in children %}
-                                <div class="tree-node {% if child.gender == 'F' %}female{% endif %} mb-2">
-                                    <a href="{{ child.get_absolute_url }}" style="color: white; text-decoration: none;">
-                                        {{ child.name }}
-                                    </a>
-                                    <small class="d-block">子女</small>
-                                </div>
+                            <!-- 配偶和子女（垂直分组） -->
+                            {% if children_by_spouse %}
+                            <div class="d-flex justify-content-center flex-wrap">
+                                {% for group in children_by_spouse %}
+                                    <div class="d-flex flex-column align-items-center {% if not forloop.first %}ms-4{% endif %}">
+                                        {% if group.spouse %}
+                                        <!-- 配偶节点 -->
+                                        <div class="tree-node {% if group.spouse.gender == 'F' %}female{% endif %} mb-2">
+                                            <a href="{{ group.spouse.get_absolute_url }}" style="color: white; text-decoration: none;">
+                                                {{ group.spouse.name }}
+                                            </a>
+                                            <small class="d-block">
+                                            {% if group.relation_type == 'marriage' %}正室{% elif group.relation_type == 'concubine' %}妾室{% elif group.relation_type == 'adopted' %}继配{% elif group.relation_type == 'first' %}一房{% elif group.relation_type == 'second' %}二房{% elif group.relation_type == 'third' %}三房{% elif group.relation_type == 'fourth' %}四房{% elif group.relation_type == 'fifth' %}五房{% else %}配偶{% endif %}
+                                        </small>
+                                        </div>
+                                        <div class="tree-connector" style="height: 20px;"></div>
+                                        {% endif %}
+                                        <!-- 子女节点 -->
+                                        {% if group.children %}
+                                        <div class="d-flex flex-wrap justify-content-center">
+                                            {% for child in group.children %}
+                                            <div class="tree-node {% if child.gender == 'F' %}female{% endif %} {% if not forloop.first %}ms-2{% endif %}">
+                                                <a href="{{ child.get_absolute_url }}" style="color: white; text-decoration: none;">
+                                                    {{ child.name }}
+                                                </a>
+                                                <small class="d-block">{% if child.gender == 'M' %}儿子{% else %}女儿{% endif %}</small>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
                                 {% endfor %}
                             </div>
                             {% endif %}

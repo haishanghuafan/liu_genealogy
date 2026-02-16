@@ -136,6 +136,52 @@ class PersonDetailView(DetailView):
         children = person.get_all_children()
         context['children'] = children
         
+        # 按配偶分组子女
+        children_by_spouse = []
+        if person.gender == 'M':
+            for relation in spouse_relations:
+                spouse_children = []
+                for child in children:
+                    if child.mother == relation.wife:
+                        spouse_children.append(child)
+                children_by_spouse.append({
+                    'spouse': relation.wife,
+                    'children': spouse_children,
+                    'relation_type': relation.relation_type,
+                    'order': relation.order
+                })
+            # 没有母亲信息的子女
+            unknown_mother_children = [child for child in children if not child.mother]
+            if unknown_mother_children:
+                children_by_spouse.append({
+                    'spouse': None,
+                    'children': unknown_mother_children,
+                    'relation_type': None,
+                    'order': 999
+                })
+        else:
+            for relation in spouse_relations:
+                spouse_children = []
+                for child in children:
+                    if child.father == relation.husband:
+                        spouse_children.append(child)
+                children_by_spouse.append({
+                    'spouse': relation.husband,
+                    'children': spouse_children,
+                    'relation_type': relation.relation_type,
+                    'order': relation.order
+                })
+            # 没有父亲信息的子女
+            unknown_father_children = [child for child in children if not child.father]
+            if unknown_father_children:
+                children_by_spouse.append({
+                    'spouse': None,
+                    'children': unknown_father_children,
+                    'relation_type': None,
+                    'order': 999
+                })
+        context['children_by_spouse'] = children_by_spouse
+        
         # 获取兄弟姐妹
         siblings = person.get_siblings()
         context['siblings'] = siblings
