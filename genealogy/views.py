@@ -637,6 +637,8 @@ class PersonForm(forms.ModelForm):
                 if not line:
                     continue
                 
+                line = line.replace('，', ',')
+                
                 if ',' in line:
                     parts = line.split(',', 1)
                     name = parts[0].strip()
@@ -655,7 +657,7 @@ class PersonForm(forms.ModelForm):
                     continue
                 
                 if not gender:
-                    raise forms.ValidationError(f'姓名"{name}"缺少性别信息，请使用"姓名,性别"格式（用英文逗号）')
+                    raise forms.ValidationError(f'姓名"{name}"缺少性别信息，请使用"姓名,性别"格式（用英文或中文逗号）')
                 
                 if Person.objects.filter(name=name, gender=gender).exists():
                     gender_desc = "男性" if gender == 'M' else "女性"
