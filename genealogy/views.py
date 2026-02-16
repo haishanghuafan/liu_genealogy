@@ -795,9 +795,9 @@ class PersonCreateView(LoginRequiredMixin, CreateView):
         return context
     
     def form_valid(self, form):
+        response = super().form_valid(form)
         form.save_child(form.instance, self.request.user)
         form.save_spouse(form.instance, self.request.user)
-        response = super().form_valid(form)
         return response
 
 
