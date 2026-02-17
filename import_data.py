@@ -173,7 +173,12 @@ def import_spouse_relations_from_excel(excel_file):
                     '婚姻': 'marriage',
                     '妾室': 'concubine',
                     '继配': 'adopted',
-                    '招赘': 'zhuazhui'
+                    '招赘': 'zhuazhui',
+                    '一房': 'first',
+                    '二房': 'second',
+                    '三房': 'third',
+                    '四房': 'fourth',
+                    '五房': 'fifth'
                 }
                 if relation_type in relation_type_map:
                     relation_type = relation_type_map[relation_type]
@@ -234,10 +239,10 @@ def import_data_from_excel(excel_file):
     Branch.objects.all().delete()
     Generation.objects.all().delete()
     
-    # 导入数据
+    # 导入数据 - 先导入世代和人物，最后导入支系以正确设置开基祖
     import_generations_from_excel(excel_file)
-    import_branches_from_excel(excel_file)
     import_persons_from_excel(excel_file)
+    import_branches_from_excel(excel_file)
     import_spouse_relations_from_excel(excel_file)
     
     print("\n数据导入完成！")
