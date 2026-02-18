@@ -20,6 +20,9 @@ urlpatterns = [
     # 人物详情
     path('person/<int:pk>/', views.PersonDetailView.as_view(), name='person_detail'),
     
+    # 家族树API
+    path('person/<int:pk>/family-tree/', views.FamilyTreeAPIView.as_view(), name='family_tree_api'),
+    
     # 支系列表
     path('branches/', views.BranchListView.as_view(), name='branch_list'),
     

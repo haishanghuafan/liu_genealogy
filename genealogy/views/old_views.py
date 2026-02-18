@@ -17,6 +17,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 from .models import Person, Generation, Branch, SpouseRelation, UserProfile, GenealogyRecord
 from .permissions import PersonOwnerMixin
 
@@ -1031,3 +1032,98 @@ class RecordUpdateView(LoginRequiredMixin, UpdateView):
         form = super().get_form(form_class)
         form.fields['related_persons'].queryset = Person.objects.all()
         return form
+
+
+class FamilyTreeAPIView(View):
+    """家族树API - 返回ECharts格式的数据"""
+    
+    def get(self, request, pk):
+        person = get_object_or_404(Person, pk=pk)
+        
+        def build_tree_node(p, include_parents=True, include_children=True):
+            """构建树节点"""
+            node = {
+                'id': p.id,
+                'name': p.name,
+                'gender': p.gender,
+                'generation': p.generation.number if p.generation else 0,
+                'url': p.get_absolute_url(),
+                'children': []
+            }
+            
+            # 添加配偶信息
+            if p.gender == 'M':
+                spouse_relations = SpouseRelation.objects.filter(husband=p)
+                for relation in spouse_relations:
+                    spouse_node = {
+                        'id': relation.wife.id,
+                        'name': relation.wife.name,
+                        'gender': relation.wife.gender,
+                        'generation': relation.wife.generation.number if relation.wife.generation else 0,
+                        'url': relation.wife.get_absolute_url(),
+                        'relation_type': relation.relation_type,
+                        'children': []
+                    }
+                    # 添加这个配偶的子女
+                    children = Person.objects.filter(father=p, mother=relation.wife)
+                    for child in children:
+                        spouse_node['children'].append(build_tree_node(child, include_parents=False, include_children=True))
+                    node['children'].append(spouse_node)
+                
+                # 添加没有母亲信息的子女
+                unknown_mother_children = Person.objects.filter(father=p, mother__isnull=True)
+                for child in unknown_mother_children:
+                    node['children'].append(build_tree_node(child, include_parents=False, include_children=True))
+            else:
+                spouse_relations = SpouseRelation.objects.filter(wife=p)
+                for relation in spouse_relations:
+                    spouse_node = {
+                        'id': relation.husband.id,
+                        'name': relation.husband.name,
+                        'gender': relation.husband.gender,
+                        'generation': relation.husband.generation.number if relation.husband.generation else 0,
+                        'url': relation.husband.get_absolute_url(),
+                        'relation_type': relation.relation_type,
+                        'children': []
+                    }
+                    # 添加这个配偶的子女
+                    children = Person.objects.filter(mother=p, father=relation.husband)
+                    for child in children:
+                        spouse_node['children'].append(build_tree_node(child, include_parents=False, include_children=True))
+                    node['children'].append(spouse_node)
+                
+                # 添加没有父亲信息的子女
+                unknown_father_children = Person.objects.filter(mother=p, father__isnull=True)
+                for child in unknown_father_children:
+                    node['children'].append(build_tree_node(child, include_parents=False, include_children=True))
+            
+            return node
+        
+        # 构建以当前人物为中心的树
+        root = build_tree_node(person)
+        
+        # 也可以构建向上追溯的祖先树
+        def build_ancestor_tree(p):
+            ancestors = []
+            current = p
+            while current.father:
+                ancestors.append({
+                    'id': current.father.id,
+                    'name': current.father.name,
+                    'gender': current.father.gender,
+                    'generation': current.father.generation.number if current.father.generation else 0,
+                    'url': current.father.get_absolute_url()
+                })
+                current = current.father
+            return list(reversed(ancestors))
+        
+        return JsonResponse({
+            'person': {
+                'id': person.id,
+                'name': person.name,
+                'gender': person.gender,
+                'generation': person.generation.number if person.generation else 0,
+            },
+            'tree': root,
+            'ancestors': build_ancestor_tree(person)
+        })
