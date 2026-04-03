@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}注册 - 刘氏乾正公族谱{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-plus" style="font-size: 4rem; color: var(--primary-color);"></i>
+                        <h3 class="serif mt-3">用户注册</h3>
+                        <p class="text-muted">加入刘氏乾正公族谱家族</p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">用户名</label>
+                            <input type="text" name="username" id="id_username" 
+                                   class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                                   placeholder="请输入用户名" required autofocus>
+                            {% if form.username.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.username.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="form-text">用户名只能包含字母、数字和下划线</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_password1" class="form-label">密码</label>
+                            <input type="password" name="password1" id="id_password1" 
+                                   class="form-control {% if form.password1.errors %}is-invalid{% endif %}" 
+                                   placeholder="请输入密码" required>
+                            {% if form.password1.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password1.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="form-text">
+                                <ul class="mb-0 ps-3">
+                                    <li>密码长度至少6位</li>
+                                    <li>不能是纯数字</li>
+                                    <li>不能是常见密码</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="id_password2" class="form-label">确认密码</label>
+                            <input type="password" name="password2" id="id_password2" 
+                                   class="form-control {% if form.password2.errors %}is-invalid{% endif %}" 
+                                   placeholder="请再次输入密码" required>
+                            {% if form.password2.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password2.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-person-check me-2"></i>注册
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-2">已有账号？</p>
+                        <a href="{% url 'genealogy:login' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>立即登录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

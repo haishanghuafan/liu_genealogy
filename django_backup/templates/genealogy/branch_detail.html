@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ branch.name }} - 刘氏乾正公族谱{% endblock %}
+
+{% block extra_css %}
+<style>
+    .person-card {
+        transition: all 0.3s ease;
+    }
+    .person-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(139, 69, 19, 0.2) !important;
+    }
+    .person-card:hover .card-title {
+        color: var(--primary-color) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 面包屑导航 -->
+<div class="container mt-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'genealogy:home' %}">首页</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'genealogy:branch_list' %}">支系</a></li>
+            <li class="breadcrumb-item active">{{ branch.name }}</li>
+        </ol>
+    </nav>
+</div>
+
+<!-- 页面标题 -->
+<div class="page-header">
+    <div class="container">
+        <h1 class="serif">{{ branch.name }}</h1>
+        {% if branch.location %}
+        <p class="mb-0"><i class="bi bi-geo-alt me-2"></i>{{ branch.location }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- 支系信息 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>支系简介</h5>
+                </div>
+                <div class="card-body">
+                    {% if branch.description %}
+                    <p>{{ branch.description }}</p>
+                    {% else %}
+                    <p class="text-muted">暂无简介</p>
+                    {% endif %}
+                    
+                    {% if branch.founder %}
+                    <hr>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-person-circle me-3" style="font-size: 2rem; color: var(--primary-color);"></i>
+                        <div>
+                            <small class="text-muted">开基祖</small>
+                            <p class="mb-0">
+                                <a href="{{ branch.founder.get_absolute_url }}">{{ branch.founder.name }}</a>
+                                <span class="badge bg-secondary ms-2">第{{ branch.founder.generation.number }}世</span>
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 成员列表 -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>支系成员</h5>
+                    <span class="badge bg-primary">{{ members|length }}人</span>
+                </div>
+                <div class="card-body">
+                    {% if members %}
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                        {% for person in members %}
+                        <div class="col">
+                            <a href="{{ person.get_absolute_url }}" class="text-decoration-none">
+                                <div class="card h-100 person-card border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <span class="badge bg-primary-subtle text-primary">第{{ person.generation.number }}世</span>
+                                            {% if person.gender == 'M' %}
+                                            <i class="bi bi-gender-male text-primary"></i>
+                                            {% else %}
+                                            <i class="bi bi-gender-female text-danger"></i>
+                                            {% endif %}
+                                        </div>
+                                        <h6 class="card-title mb-1 text-dark">{{ person.name }}</h6>
+                                        {% if person.courtesy_name %}
+                                        <p class="card-text small text-muted mb-1">字：{{ person.courtesy_name }}</p>
+                                        {% endif %}
+                                        {% if person.birth_year %}
+                                        <p class="card-text small text-muted mb-0">
+                                            <i class="bi bi-calendar3 me-1"></i>{{ person.birth_year }}{% if person.death_year %} - {{ person.death_year }}{% endif %}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">暂无成员数据</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧边栏 -->
+        <div class="col-lg-4">
+            <!-- 统计信息 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>统计信息</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted">成员总数</td>
+                                <td class="text-end"><strong>{{ members|length }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">最早世代</td>
+                                <td class="text-end">
+                                    {% if members %}
+                                    <strong>第{{ members.first.generation.number }}世</strong>
+                                    {% else %}-{% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">最晚世代</td>
+                                <td class="text-end">
+                                    {% if members %}
+                                    <strong>第{{ members.last.generation.number }}世</strong>
+                                    {% else %}-{% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 快速操作 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>快速操作</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'genealogy:branch_list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-diagram-2 me-2"></i>所有支系
+                        </a>
+                        <a href="{% url 'genealogy:person_list' %}?branch={{ branch.id }}" class="btn btn-outline-primary">
+                            <i class="bi bi-people me-2"></i>本支系人物
+                        </a>
+                        <a href="{% url 'genealogy:tree' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-diagram-3 me-2"></i>世系图
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

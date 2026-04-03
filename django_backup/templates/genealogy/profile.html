@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}个人资料 - 刘氏乾正公族谱{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-circle me-2"></i>个人资料</h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-4">
+                            <i class="bi bi-person-circle" style="font-size: 6rem; color: var(--primary-color);"></i>
+                            <h5 class="mt-3">{{ user.username }}</h5>
+                            <p class="text-muted">{{ user.email|default:"未设置邮箱" }}</p>
+                        </div>
+                        <div class="col-md-8">
+                            <h6 class="border-bottom pb-2 mb-3">账户信息</h6>
+                            <table class="table table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <td width="120" class="text-muted">用户名</td>
+                                        <td>{{ user.username }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">邮箱</td>
+                                        <td>{{ user.email|default:"未设置" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">注册时间</td>
+                                        <td>{{ user.date_joined|date:"Y年m月d日" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">最后登录</td>
+                                        <td>{{ user.last_login|date:"Y年m月d日 H:i" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            {% if profile.related_person %}
+                            <h6 class="border-bottom pb-2 mb-3 mt-4">族谱关联</h6>
+                            <div class="alert alert-info">
+                                <i class="bi bi-link-45deg me-2"></i>
+                                您已关联族谱人物：
+                                <a href="{{ profile.related_person.get_absolute_url }}" class="alert-link">
+                                    {{ profile.related_person.name }}
+                                </a>
+                                <span class="badge bg-primary ms-2">第{{ profile.related_person.generation.number }}世</span>
+                            </div>
+                            {% endif %}
+                            
+                            <h6 class="border-bottom pb-2 mb-3 mt-4">账户操作</h6>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'genealogy:password_change' %}" class="btn btn-outline-primary">
+                                    <i class="bi bi-key me-2"></i>修改密码
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

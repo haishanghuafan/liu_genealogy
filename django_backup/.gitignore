@@ -1,0 +1,94 @@
+# Build and Release Folders
+bin-debug/
+bin-release/
+[Oo]bj/
+[Bb]in/
+
+# Other files and folders
+.settings/
+
+# Executables
+*.swf
+*.air
+*.ipa
+*.apk
+
+# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
+# should NOT be excluded as they contain compiler settings and other important
+# information for Eclipse / Flash Builder.
+# 忽略Python编译文件和虚拟环境
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 忽略虚拟环境
+venv/
+env/
+.env
+.venv/
+node_modules/
+
+# 忽略导出数据时创建的文件
+export.xlsx
+
+# 忽略IDE和编辑器相关文件
+.cursor/
+.vscode/
+.kiro/
+.trae/
+.qoder/
+.idea/
+.vercel/
+.kwaipilot
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# 忽略AI辅助编程工具continue
+.continue
+
+# 忽略静态文件和媒体文件
+/static/
+/staticfiles/
+# /media/
+
+# 忽略日志文件
+*.log
+
+# 忽略性能分析文件（Silk工具生成）
+*.prof
+backend/media/*.prof
+
+# 忽略操作系统生成的文件
+.DS_Store
+Thumbs.db
+
+# 忽略Python包目录和前端构建产物
+*.egg-info/
+dist/
+build/
+dev-dist/
+
+# 忽略环境变量文件
+.env
+baking_wms/.env
+pxsk/.env
+.env.local
+.env.*.local
+.env.backup.*
+
+# 忽略测试相关文件
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 忽略其他临时文件
+*.tmp
+*.bak
+test.*gi
+nohup.out
+~$*.xlsx
+uwsgi.service
+# 忽略数据库文件
+db.sqlite3
