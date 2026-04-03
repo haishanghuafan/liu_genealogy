@@ -1,0 +1,41 @@
+/* Genealogy SaaS - Clean Theme */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    background-color: #faf8f5;
+    color: #1a1a1a;
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Noto Serif SC', 'Noto Serif', Georgia, serif;
+  }
+  
+  ::selection {
+    background-color: #c94043;
+    color: white;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #e8e4dd;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #6b6b6b;
+    border-radius: 4px;
+  }
+}
