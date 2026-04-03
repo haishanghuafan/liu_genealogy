@@ -68,3 +68,5 @@ backend/*.db
 backend/static/
 backend/media/
 frontend/.env.local
+
+staticfiles/
