@@ -1,6 +1,8 @@
-# 族谱云 - 多租户族谱 SaaS 平台
+# 族谱云 - Next.js 多租户族谱系统
 
-> 现代化的多家族族谱管理系统，支持族谱树可视化、成员管理、历史记录
+> 基于 Next.js 14 + FastAPI 的现代化族谱管理系统，支持族谱树可视化、成员管理、多租户隔离
+
+**🎉 Next.js 迁移已完成 80%！Django 旧版本已删除**
 
 ## 🏗️ 项目结构
 
@@ -8,47 +10,56 @@
 .
 ├── backend/                # FastAPI 后端
 │   ├── app/
-│   │   ├── api/           # API 路由
+│   │   ├── api/v1/        # API 路由
 │   │   ├── core/          # 核心配置
 │   │   ├── middleware/    # 中间件
 │   │   ├── models/        # 数据模型
+│   │   ├── services/      # 业务服务
 │   │   └── main.py        # 应用入口
-│   ├── migrations/        # 数据库迁移
-│   └── tests/             # 测试
+│   └── requirements.txt   # Python 依赖
 │
 ├── frontend/              # Next.js 前端
-│   ├── app/              # 页面
-│   ├── components/       # 组件
-│   └── lib/              # 工具库
+│   ├── app/              # 页面路由
+│   ├── components/       # UI 组件
+│   ├── lib/              # 工具库
+│   └── public/           # 静态资源
 │
 ├── docker/               # Docker 配置
 ├── scripts/              # 脚本工具
-└── docs/                 # 文档
+├── docs/                 # 文档
+└── start-nextjs.sh       # 快速启动脚本
 ```
 
 ## 🚀 快速开始
 
-### 方式一：本地开发（最简单）
+### 方式一：使用启动脚本（推荐）
 
-**只需 Python + Node.js，使用 SQLite 数据库！**
+**一键启动前后端服务！**
 
 ```bash
-# Windows
-.\setup.ps1      # 安装依赖
-.\start-dev.ps1  # 启动服务
-
-# macOS/Linux
-./setup.sh && ./start-dev.sh
+./start-nextjs.sh
 ```
 
 访问：
-- 前端: http://localhost:3010
-- 后端 API: http://localhost:8010
-- API 文档: http://localhost:8010/api/v1/docs
+- 前端：http://localhost:3000
+- 后端 API: http://localhost:8000
+- API 文档：http://localhost:8000/api/v1/docs
 
-详细说明: [本地开发指南](docs/LOCAL_DEVELOPMENT.md)
+### 方式二：手动启动
 
-### 方式二：Docker Compose
+```bash
+# 后端
+cd backend
+source venv/bin/activate
+export DATABASE_URL="sqlite+aiosqlite:///./genealogy.db"
+uvicorn app.main:app --reload
+
+# 前端
+cd frontend
+npm run dev
+```
+
+### 方式三：Docker Compose
 
 ```bash
 # 开发环境
@@ -65,7 +76,7 @@ docker-compose -f docker-compose.prod.yml up -d
 |------|------|
 | 本地开发 | Python 3.11+, Node.js 18+ |
 | Docker | Docker & Docker Compose |
-| 生产环境 | PostgreSQL 16, Neo4j 5 (可选) |
+| 生产环境 | PostgreSQL 16 (可选，默认 SQLite) |
 
 **SQLite 默认启用，无需安装额外数据库！**
 
@@ -73,12 +84,11 @@ docker-compose -f docker-compose.prod.yml up -d
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | Next.js 15, React 19, Tailwind CSS |
-| 后端 | FastAPI, SQLAlchemy 2.0 |
-| 数据库 | PostgreSQL 16, Neo4j 5 |
-| 缓存 | Redis 7 |
-| 搜索 | Meilisearch |
-| 存储 | MinIO (S3 兼容) |
+| 前端 | Next.js 14, React 18, TypeScript 5, Tailwind CSS, shadcn/ui |
+| 后端 | FastAPI 0.115, SQLAlchemy 2.0 (Async), Pydantic v2 |
+| 数据库 | SQLite3 (默认), PostgreSQL 16 (生产可选) |
+| 认证 | JWT (PyJWT), bcrypt 密码加密 |
+| 部署 | Docker, Nginx, Gunicorn |
 
 ## 🚢 部署
 
@@ -96,7 +106,31 @@ chmod +x deploy.sh
 3. 运行 `docker-compose -f docker-compose.prod.yml up -d`
 4. 运行数据库迁移 `alembic upgrade head`
 
+详细部署指南：[部署文档](docs/DEPLOYMENT.md)
+
+## ✅ 功能特性
+
+### 已完成 (80%)
+- ✅ 用户认证（注册/登录/密码修改）
+- ✅ 多租户系统
+- ✅ 人物管理（CRUD）
+- ✅ 家族树可视化
+- ✅ 支系管理
+- ✅ 世代管理
+- ✅ 配偶关系管理
+- ✅ 基础搜索
+
+### 待完成 (20%)
+- ⏳ Excel 数据导入
+- ⏳ 访问统计
+- ⏳ 文件上传优化
+- ⏳ 高级搜索
+
 ## 📖 文档
+
+- [迁移完成总结](./MIGRATION_COMPLETE_SUMMARY.md)
+- [迁移状态详情](./MIGRATION_STATUS.md)
+- [测试清单](./NEXTJS_TEST_CHECKLIST.md)
 
 - [架构设计文档](docs/ARCHITECTURE.md)
 - [API 文档](http://localhost:8010/api/v1/docs)
