@@ -268,3 +268,76 @@ class ChangeLog(Base):
     
     def __repr__(self) -> str:
         return f"<ChangeLog {self.table_name}:{self.record_id}>"
+
+
+class PageView(Base):
+    """Page view tracking model"""
+    
+    __tablename__ = "page_views"
+    
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    
+    # Page info
+    page_type: Mapped[str] = mapped_column(String(50), nullable=False)  # person, branch, generation, etc.
+    page_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    tenant_slug: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    # View info
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    is_authenticated: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Timestamp
+    viewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<PageView {self.page_type}:{self.page_id}>"
+
+
+class DailyVisitStats(Base):
+    """Daily visit statistics model"""
+    
+    __tablename__ = "daily_visit_stats"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    tenant_slug: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    # Visit counts
+    total_views: Mapped[int] = mapped_column(Integer, default=0)
+    unique_visitors: Mapped[int] = mapped_column(Integer, default=0)
+    authenticated_views: Mapped[int] = mapped_column(Integer, default=0)
+    anonymous_views: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Page type breakdown
+    person_views: Mapped[int] = mapped_column(Integer, default=0)
+    branch_views: Mapped[int] = mapped_column(Integer, default=0)
+    generation_views: Mapped[int] = mapped_column(Integer, default=0)
+    family_tree_views: Mapped[int] = mapped_column(Integer, default=0)
+    other_views: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    
+    __table_args__ = (
+        # Unique constraint to ensure one record per day per tenant
+    )
+    
+    def __repr__(self) -> str:
+        return f"<DailyVisitStats {self.date} - {self.tenant_slug}>"
