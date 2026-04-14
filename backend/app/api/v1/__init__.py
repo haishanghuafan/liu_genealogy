@@ -13,9 +13,13 @@ from app.api.v1.endpoints import (
     settings,
     files,
     search,
-    analytics,
+    analytics_endpoints as analytics,
     records,
     export,
+    branches,
+    generations,
+    spouse_relations,
+    import_data,
 )
 
 api_router = APIRouter()
@@ -39,5 +43,9 @@ tenant_router.include_router(search.router)
 tenant_router.include_router(analytics.router)
 tenant_router.include_router(records.router)
 tenant_router.include_router(export.router)
+tenant_router.include_router(branches.router)
+tenant_router.include_router(generations.router)
+tenant_router.include_router(spouse_relations.router)
+tenant_router.include_router(import_data.router)
 
 api_router.include_router(tenant_router)

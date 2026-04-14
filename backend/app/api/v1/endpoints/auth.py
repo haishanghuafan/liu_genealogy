@@ -123,6 +123,52 @@ async def login(
     )
 
 
+class ChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/change-password", response_model=dict)
+async def change_password(
+    data: ChangePassword,
+    db: AsyncSession = Depends(get_db),
+    user = Depends(verify_token),
+):
+    """Change user password"""
+    from uuid import UUID
+    
+    # Find user
+    stmt = select(User).where(User.id == UUID(user))
+    result = await db.execute(stmt)
+    current_user = result.scalar_one_or_none()
+    
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    # Verify old password
+    if not verify_password(data.old_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid old password",
+        )
+    
+    # Validate new password
+    if len(data.new_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 6 characters",
+        )
+    
+    # Update password
+    current_user.password_hash = get_password_hash(data.new_password)
+    await db.commit()
+    
+    return {"success": True, "message": "Password changed successfully"}
+
+
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
     refresh_token: str,
