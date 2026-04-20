@@ -19,6 +19,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan events"""
     # Startup
     db_manager.init_default_engine()
+    
+    # Create database tables
+    from app.models import Tenant, User, TenantUser, Subscription
+    from app.models.tenant import Person, Generation, Branch, SpouseRelation
+    async with db_manager._default_engine.begin() as conn:
+        from app.core.database import Base
+        await conn.run_sync(Base.metadata.create_all)
+    
     print(f"[START] {settings.app_name} v{settings.app_version} started")
     print(f"[INFO] Environment: {settings.environment}")
     

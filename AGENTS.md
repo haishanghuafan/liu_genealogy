@@ -68,18 +68,24 @@
 
 ## 常用命令
 
+### 开发环境
+
 ```bash
-# 前端
-cd frontend && pnpm dev          # 开发
-pnpm build                       # 构建
-pnpm lint                       # 检查
-
 # 后端
-cd backend && uvicorn app.main:app --reload --port 8012
-pytest tests/ -v                 # 测试
+cd backend
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+.\venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8012
 
-# 数据库
-alembic upgrade head             # 迁移
+# 前端
+cd frontend
+pnpm install
+pnpm dev
+```
+
+### 生产环境
+
+```bash
+docker-compose up -d
 ```
 
 ## 文件结构

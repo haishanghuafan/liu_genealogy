@@ -94,7 +94,7 @@ async def init_system():
         print("\n🌐 Next steps:")
         print("   1. Start the API server: uvicorn app.main:app --reload")
         print("   2. Start the frontend: cd frontend && npm run dev")
-        print(f"   3. Visit: http://localhost:3010/t/{tenant_slug}/family-tree")
+        print(f"   3. Visit: http://localhost:3012/t/{tenant_slug}/family-tree")
         
     finally:
         await conn.close()

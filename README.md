@@ -38,10 +38,10 @@
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8012
 ```
 
-API 文档：http://localhost:8000/api/v1/docs
+API 文档：http://localhost:8012/api/v1/docs
 
 ### 启动前端
 
@@ -51,7 +51,7 @@ pnpm install
 pnpm dev
 ```
 
-访问：http://localhost:3000
+访问：http://localhost:3012
 
 ### Docker 部署
 
@@ -167,7 +167,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 ### 前端 (.env.local)
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_API_URL=http://localhost:8012/api/v1
 ```
 
 ## 📖 文档
@@ -190,6 +190,6 @@ cd frontend
 pnpm build
 ```
 
-## � 许可证
+##  许可证
 
 私有项目

@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_days: int = 30
     
     # CORS
-    cors_origins: list[str] = ["http://localhost:3010"]
+    cors_origins: list[str] = ["http://localhost:3012"]
     
     # File Storage (MinIO / S3)
     storage_endpoint: str = "http://localhost:9000"
