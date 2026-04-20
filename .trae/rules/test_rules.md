@@ -5,6 +5,7 @@ description: 运行各种测试时生效
 # 族谱管理系统测试规则
 
 ## 一、测试工具选择
+**原则**: 优先使用agent-browser，如果没有agent-browser，再使用Playwright默认无头模式。
 
 | 场景 | 推荐工具 | 说明 |
 |------|----------|------|
@@ -14,7 +15,6 @@ description: 运行各种测试时生效
 | 复杂业务流程 | Playwright (headless) | 完整E2E测试 |
 | 族谱关系测试 | pytest | 家族关系验证 |
 
-**原则**: 优先使用agent-browser，Playwright默认无头模式。
 
 ## 二、测试文件管理
 
