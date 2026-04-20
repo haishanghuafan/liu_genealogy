@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Optional
 
+from fastapi import Request
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -133,12 +134,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-async def get_tenant_db(schema_name: str) -> AsyncGenerator[AsyncSession, None]:
+async def get_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
     """Dependency for getting tenant-specific database session"""
-    # Skip SET search_path for SQLite
+    schema_name = getattr(request.state, "tenant_schema", "public")
+
     db_url = str(settings.database_url)
     is_sqlite = db_url.startswith("sqlite")
-    
+
     session_maker = db_manager.get_session_maker(schema_name)
     async with session_maker() as session:
         try:

@@ -89,26 +89,37 @@ async def build_tree_from_root(
 
 async def build_full_tree(db: AsyncSession, max_depth: int) -> Optional[TreeNode]:
     """Build full tree starting from earliest ancestor"""
-    
-    # Find person without father (earliest ancestor)
+
+    # Find all persons without father (roots)
     stmt = (
         select(Person)
         .where(Person.father_id == None)
-        .order_by(Person.generation_id)
-        .limit(1)
+        .order_by(Person.generation_id, Person.id)
     )
     result = await db.execute(stmt)
-    root = result.scalar_one_or_none()
-    
-    if not root:
-        # Fallback: get first person by generation
+    all_roots = result.scalars().all()
+
+    if not all_roots:
         stmt = select(Person).order_by(Person.generation_id).limit(1)
         result = await db.execute(stmt)
         root = result.scalar_one_or_none()
-    
+        if not root:
+            return None
+        return await build_node_tree(db, root, max_depth)
+
+    # Find a root that has children (most likely the main lineage root)
+    root = None
+    for candidate in all_roots:
+        stmt = select(Person).where(Person.father_id == candidate.id).limit(1)
+        result = await db.execute(stmt)
+        if result.scalar_one_or_none():
+            root = candidate
+            break
+
+    # Fallback to first root if none has children
     if not root:
-        return None
-    
+        root = all_roots[0]
+
     return await build_node_tree(db, root, max_depth)
 
 

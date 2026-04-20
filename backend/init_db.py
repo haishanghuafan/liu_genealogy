@@ -37,42 +37,47 @@ async def create_tenant():
 
         if existing:
             print(f"[OK] Tenant '{tenant_slug}' already exists")
-            return existing
+            tenant = existing
+        else:
+            tenant = Tenant(
+                id=uuid.uuid4(),
+                name="刘氏族谱",
+                slug=tenant_slug,
+                surname="刘",
+                is_public=True,
+                is_active=True,
+                plan="free",
+                schema_name="liushipu",
+                neo4j_database=f"tenant_{tenant_slug}",
+            )
+            session.add(tenant)
 
-        tenant = Tenant(
-            id=uuid.uuid4(),
-            name="刘氏族谱",
-            slug=tenant_slug,
-            surname="刘",
-            is_public=True,
-            is_active=True,
-            plan="free",
-            schema_name="liushipu",
-            neo4j_database=f"tenant_{tenant_slug}",
-        )
-        session.add(tenant)
+            admin_user = User(
+                id=uuid.uuid4(),
+                email="admin@liushipu.com",
+                password_hash=get_password_hash("admin123"),
+                nickname="管理员",
+                system_role="admin",
+            )
+            session.add(admin_user)
+            await session.flush()
 
-        admin_user = User(
-            id=uuid.uuid4(),
-            email="admin@liushipu.com",
-            password_hash=get_password_hash("admin123"),
-            nickname="管理员",
-            system_role="admin",
-        )
-        session.add(admin_user)
-        await session.flush()
+            tenant_user = TenantUser(
+                tenant_id=tenant.id,
+                user_id=admin_user.id,
+                role="owner",
+            )
+            session.add(tenant_user)
 
-        tenant_user = TenantUser(
-            tenant_id=tenant.id,
-            user_id=admin_user.id,
-            role="owner",
-        )
-        session.add(tenant_user)
+            await session.commit()
+            print(f"[OK] Tenant '{tenant_slug}' created with admin user")
+            print(f"     Email: admin@liushipu.com")
+            print(f"     Password: admin123")
 
-        await session.commit()
-        print(f"[OK] Tenant '{tenant_slug}' created with admin user")
-        print(f"     Email: admin@liushipu.com")
-        print(f"     Password: admin123")
+        tenant_engine = db_manager.get_engine(tenant.schema_name)
+        async with tenant_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print(f"[OK] Created tables for tenant schema '{tenant.schema_name}'")
 
         return tenant
 
@@ -94,7 +99,7 @@ async def import_excel_data(tenant: Tenant):
         print(f"[!] Excel file not found: {excel_path}")
         return
 
-    session_maker = db_manager.get_session_maker("public")
+    session_maker = db_manager.get_session_maker(tenant.schema_name)
     async with session_maker() as session:
         gen_map = {}
         for _, row in df_generations.iterrows():

@@ -37,12 +37,12 @@ class TenantMiddleware(BaseHTTPMiddleware):
     TENANT_PATH_PREFIX = "/t/"
     
     async def dispatch(self, request: Request, call_next):
-        # Skip tenant check for public paths
-        if self._is_public_path(request.url.path):
+        path = request.url.path
+        
+        if self._is_public_path(path):
             request.state.tenant = None
             return await call_next(request)
         
-        # Extract tenant slug
         tenant_slug = await self._extract_tenant_slug(request)
         
         if tenant_slug:
@@ -85,6 +85,8 @@ class TenantMiddleware(BaseHTTPMiddleware):
     
     def _is_public_path(self, path: str) -> bool:
         """Check if path is public (doesn't require tenant)"""
+        if path.startswith("/api/v1/t/"):
+            return False
         for public_path in self.PUBLIC_PATHS:
             if path.startswith(public_path) or path == public_path:
                 return True
@@ -92,11 +94,11 @@ class TenantMiddleware(BaseHTTPMiddleware):
     
     async def _extract_tenant_slug(self, request: Request) -> Optional[str]:
         """Extract tenant slug from request"""
-        # Method 1: URL path (/t/{tenant_slug}/...)
-        if self.TENANT_PATH_PREFIX in request.url.path:
-            match = re.search(rf"{self.TENANT_PATH_PREFIX}([^/]+)", request.url.path)
-            if match:
-                return match.group(1)
+        path = request.url.path
+        
+        match = re.search(r'(?:/api/v1)?/t/([^/]+)', path)
+        if match:
+            return match.group(1)
         
         # Method 2: Subdomain (tenant.genealogy.com)
         host = request.headers.get("host", "")

@@ -1,21 +1,22 @@
 import { FamilyTreePage } from "@/components/family-tree/FamilyTreePage"
+import { Suspense } from "react"
 
 interface PageProps {
-  params: {
+  params: Promise<{
     tenant: string
-  }
+  }>
 }
 
-export default function TenantFamilyTreePage({ params }: PageProps) {
-  const tenantSlug = params.tenant
-  
-  // TODO: Fetch tenant info from API
+export default async function TenantFamilyTreePage({ params }: PageProps) {
+  const { tenant: tenantSlug } = await params
   const tenantName = `${tenantSlug}家族`
-  
+
   return (
-    <FamilyTreePage
-      tenantSlug={tenantSlug}
-      tenantName={tenantName}
-    />
+    <Suspense fallback={<div>加载中...</div>}>
+      <FamilyTreePage
+        tenantSlug={tenantSlug}
+        tenantName={tenantName}
+      />
+    </Suspense>
   )
 }

@@ -40,7 +40,7 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
     try {
       setLoading(true)
       const url = rootPersonId
-        ? `/api/v1/t/${tenantSlug}/family-tree?root=${rootPersonId}`
+        ? `/api/v1/t/${tenantSlug}/family-tree?root_id=${rootPersonId}`
         : `/api/v1/t/${tenantSlug}/family-tree`
       
       const response = await fetch(url)
