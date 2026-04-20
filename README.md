@@ -1,8 +1,6 @@
-# 族谱云 - Next.js 多租户族谱系统
+# 族谱云 - 刘氏乾正公族谱管理系统
 
-> 基于 Next.js 14 + FastAPI 的现代化族谱管理系统，支持族谱树可视化、成员管理、多租户隔离
-
-**🎉 Next.js 迁移已完成 80%！Django 旧版本已删除**
+> 基于 Next.js 15 + FastAPI 的现代化多租户族谱管理系统，支持族谱树可视化、成员管理、多租户隔离
 
 ## 🏗️ 项目结构
 
@@ -16,151 +14,182 @@
 │   │   ├── models/        # 数据模型
 │   │   ├── services/      # 业务服务
 │   │   └── main.py        # 应用入口
-│   └── requirements.txt   # Python 依赖
+│   └── tests/             # 测试
 │
 ├── frontend/              # Next.js 前端
 │   ├── app/              # 页面路由
 │   ├── components/       # UI 组件
-│   ├── lib/              # 工具库
-│   └── public/           # 静态资源
+│   └── lib/               # 工具库
 │
 ├── docker/               # Docker 配置
-├── scripts/              # 脚本工具
-├── docs/                 # 文档
-└── start-nextjs.sh       # 快速启动脚本
+├── docs/                 # 文档（原始族谱资料）
+└── scripts/              # 工具脚本
 ```
 
 ## 🚀 快速开始
 
-### 方式一：使用启动脚本（推荐）
+### 前置要求
+- Python 3.11+
+- Node.js 18+
+- pnpm (推荐) 或 npm
 
-**一键启动前后端服务！**
-
-```bash
-./start-nextjs.sh
-```
-
-访问：
-- 前端：http://localhost:3000
-- 后端 API: http://localhost:8000
-- API 文档：http://localhost:8000/api/v1/docs
-
-### 方式二：手动启动
+### 启动后端
 
 ```bash
-# 后端
 cd backend
-source venv/bin/activate
-export DATABASE_URL="sqlite+aiosqlite:///./genealogy.db"
-uvicorn app.main:app --reload
-
-# 前端
-cd frontend
-npm run dev
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-### 方式三：Docker Compose
+API 文档：http://localhost:8000/api/v1/docs
+
+### 启动前端
 
 ```bash
-# 开发环境
-docker-compose up -d
-
-# 生产环境
-cp .env.production .env
-docker-compose -f docker-compose.prod.yml up -d
+cd frontend
+pnpm install
+pnpm dev
 ```
 
-### 环境要求
+访问：http://localhost:3000
 
-| 方式 | 必需 |
-|------|------|
-| 本地开发 | Python 3.11+, Node.js 18+ |
-| Docker | Docker & Docker Compose |
-| 生产环境 | PostgreSQL 16 (可选，默认 SQLite) |
+### Docker 部署
 
-**SQLite 默认启用，无需安装额外数据库！**
+```bash
+docker-compose up -d
+```
 
 ## 📚 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | Next.js 14, React 18, TypeScript 5, Tailwind CSS, shadcn/ui |
+| 前端 | Next.js 15, React 18, TypeScript 5, Tailwind CSS, shadcn/ui, TanStack Query |
 | 后端 | FastAPI 0.115, SQLAlchemy 2.0 (Async), Pydantic v2 |
-| 数据库 | SQLite3 (默认), PostgreSQL 16 (生产可选) |
-| 认证 | JWT (PyJWT), bcrypt 密码加密 |
+| 数据库 | SQLite3 (开发), PostgreSQL 16 (生产) |
+| 认证 | JWT |
+| 图表 | D3.js, react-d3-tree |
 | 部署 | Docker, Nginx, Gunicorn |
-
-## 🚢 部署
-
-### 一键部署
-
-```bash
-chmod +x deploy.sh
-./deploy.sh production
-```
-
-### 手动部署
-
-1. 复制 `.env.production` 为 `.env` 并配置
-2. 配置 SSL 证书到 `docker/nginx/ssl/`
-3. 运行 `docker-compose -f docker-compose.prod.yml up -d`
-4. 运行数据库迁移 `alembic upgrade head`
-
-详细部署指南：[部署文档](docs/DEPLOYMENT.md)
 
 ## ✅ 功能特性
 
-### 已完成 (80%)
-- ✅ 用户认证（注册/登录/密码修改）
+### 核心功能
+- ✅ 用户认证（注册/登录/修改密码）
 - ✅ 多租户系统
 - ✅ 人物管理（CRUD）
 - ✅ 家族树可视化
 - ✅ 支系管理
 - ✅ 世代管理
 - ✅ 配偶关系管理
-- ✅ 基础搜索
+- ✅ 搜索功能
+- ✅ Excel 数据导入/导出
+- ✅ 文件管理
 
-### 待完成 (20%)
-- ⏳ Excel 数据导入
-- ⏳ 访问统计
-- ⏳ 文件上传优化
-- ⏳ 高级搜索
+### 前端页面
+- `/login` - 用户登录
+- `/register` - 用户注册
+- `/t/[tenant]` - 租户首页
+- `/t/[tenant]/persons` - 人物列表
+- `/t/[tenant]/family-tree` - 族谱树
+- `/t/[tenant]/branches` - 支系列表
+- `/t/[tenant]/generations` - 世代列表
+- `/t/[tenant]/import` - 数据导入
+- `/t/[tenant]/export` - 数据导出
+- `/t/[tenant]/analytics` - 统计分析
+- `/t/[tenant]/settings` - 租户设置
+
+## 📁 项目结构详情
+
+### 后端 (backend/app/)
+
+```
+api/v1/endpoints/          # API 端点
+├── auth.py               # 认证
+├── persons.py            # 人物管理
+├── families.py           # 家族关系
+├── branches.py           # 支系管理
+├── generations.py        # 世代管理
+├── family_tree.py        # 族谱树
+├── search.py             # 搜索
+├── import_data.py        # 数据导入
+├── export.py             # 数据导出
+├── files.py              # 文件管理
+├── tenants.py            # 租户管理
+└── subscriptions.py      # 订阅管理
+
+models/                   # 数据模型
+├── tenant.py            # 租户模型
+├── system.py            # 系统模型
+├── analytics.py         # 统计模型
+└── records.py           # 记录模型
+
+services/                 # 业务服务
+├── auth_service.py      # 认证服务
+├── family_service.py    # 族谱服务
+├── excel_import_service.py  # Excel导入
+├── export_service.py    # 导出服务
+├── neo4j_service.py     # Neo4j图数据库
+└── visit_tracker.py     # 访问统计
+```
+
+### 前端 (frontend/)
+
+```
+app/
+├── [tenant]/            # 租户路由
+│   ├── persons/        # 人物页面
+│   ├── family-tree/    # 族谱树
+│   ├── branches/       # 支系
+│   ├── generations/    # 世代
+│   ├── import/         # 导入
+│   ├── export/         # 导出
+│   └── analytics/      # 统计
+│
+├── t/[tenant]/         # 租户管理页面
+│   ├── members/        # 成员管理
+│   ├── persons/        # 人物管理
+│   └── subscription/  # 订阅
+│
+components/
+├── ui/                 # shadcn/ui 组件
+├── family-tree/        # 族谱树组件
+└── admin/              # 管理组件
+```
+
+## � 环境变量
+
+### 后端 (.env)
+```
+DATABASE_URL=sqlite+aiosqlite:///./genealogy.db
+SECRET_KEY=your-secret-key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+### 前端 (.env.local)
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+```
 
 ## 📖 文档
 
-- [迁移完成总结](./MIGRATION_COMPLETE_SUMMARY.md)
-- [迁移状态详情](./MIGRATION_STATUS.md)
-- [测试清单](./NEXTJS_TEST_CHECKLIST.md)
-
-- [架构设计文档](docs/ARCHITECTURE.md)
-- [API 文档](http://localhost:8010/api/v1/docs)
+项目文档位于 `AGENTS.md`，包含：
+- 开发规范
+- 代码风格
+- AI 生成规则
+- 优化工作指南
 
 ## 🧪 测试
 
 ```bash
 # 后端测试
 cd backend
-pytest tests/ -v --cov
+pytest tests/ -v
 
-# 前端测试
+# 前端构建检查
 cd frontend
-npm run test
+pnpm build
 ```
 
-## 📝 开发进度
+## � 许可证
 
-- [x] 架构设计文档
-- [x] 项目骨架搭建
-- [x] 数据模型设计
-- [x] 租户中间件
-- [x] 认证系统
-- [x] 族谱树可视化
-- [x] 人物管理 API
-- [x] 管理后台
-- [x] 前端页面
-- [x] 测试用例
-- [x] 部署配置
-
-## 📄 License
-
-MIT
+私有项目

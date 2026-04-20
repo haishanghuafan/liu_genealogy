@@ -1,122 +1,326 @@
-# liu_genealogy: 刘氏乾正公族谱网站
+# 族谱云 - 开发规范
 
 ## 技术栈
-- 后端: Django 5.2 LTS, Python 3.12+, SQLite3（生产可迁移 PostgreSQL）
-- 前端: Django Templates + Bootstrap 5 + 原生 JS + jQuery
-- 部署: Docker + Nginx 1.28 (stable) + gunicorn
-- 工具: Pillow（图片处理）, pandas + openpyxl（数据导入）, python-dotenv
 
-===============================================================================
-# 一、全局规则
+- **后端**: FastAPI 0.115, Python 3.11+, SQLAlchemy 2.0 (Async), Pydantic v2
+- **前端**: Next.js 15, React 18, TypeScript 5, Tailwind CSS, shadcn/ui, TanStack Query
+- **数据库**: SQLite3 (开发), PostgreSQL 16 (生产)
+- **认证**: JWT (PyJWT)
+- **部署**: Docker, Nginx, Gunicorn
 
-1. 这是传统 Django 全栈项目，前后端不分离，使用 Django 模板渲染
-2. 所有页面必须响应式，适配手机和 PC
-3. 禁止硬编码敏感信息，配置通过 .env 文件注入
-4. 所有用户上传文件必须校验类型和大小（图片 ≤5MB，视频 ≤100MB）
-5. 所有涉及人物数据的操作必须登录后才能修改，只读页面可匿名访问
-6. 语言设置：zh-hans，时区：Asia/Shanghai
-7. 静态文件生产环境通过 collectstatic 收集，由 Nginx 直接服务
+---
 
-===============================================================================
-# 二、后端规则（Django）
+## 一、项目架构
 
-## 架构规范
-- 视图层：使用 Class-Based Views（CBV）或函数视图，业务简单时优先函数视图
-- 禁止在视图中写复杂查询，抽取到独立函数或 Model 方法
-- URL 命名必须使用 namespace：genealogy:person_detail
+### 1.1 前后端分离架构
 
-## 数据模型规范
-- 主键使用 Django 默认 BigAutoField（族谱数据无需 UUID）
-- 所有 Model 必须定义 `__str__` 和 `verbose_name`
-- 人物关系（父子、配偶）通过 ForeignKey 和 ManyToManyField 建模，禁止用字符串存储关系
-- 配偶关系通过 SpouseRelation 中间表管理，支持关系类型（正配/妾室/继配等）
-- 文件上传必须使用 validators 校验格式和大小
+```
+浏览器 <-> Next.js (前端) <-> FastAPI (后端) <-> 数据库
+```
 
-## 族谱核心模型
-- Generation（世代）：世代数 + 是否配偶世代，unique_together 约束
-- Person（人物）：姓名、字号、生卒、父母、配偶、支系、头像
-- Branch（支系）：支系名称、开基祖、分布地区
-- SpouseRelation（配偶关系）：丈夫、妻子、关系类型、排序
-- GenealogyRecord（族谱记录）：原始资料、来源图片、关联人物
-- PageView / DailyVisitStats：访问统计
+- Next.js 15 作为前端服务，监听 3000 端口
+- FastAPI 作为后端 API，监听 8000 端口
+- API 路径前缀: `/api/v1`
+- 前端通过 `NEXT_PUBLIC_API_URL` 配置后端地址
 
-## 查询优化
-- 人物列表必须使用 select_related('generation', 'father', 'branch')
-- 人物详情必须 prefetch_related('spouses', 'images', 'videos', 'records')
-- 禁止在模板中触发额外查询（N+1 问题）
-- 访问统计写入使用 update_or_create，禁止先查后写
+### 1.2 多租户架构
 
-## 权限规范
-- 只读页面（族谱浏览、人物详情）：匿名可访问
-- 数据修改（新增/编辑/删除人物）：必须 @login_required
-- 管理后台：仅 staff 用户可访问
-- 文件上传接口：必须校验登录状态和文件合法性
+- 租户通过 URL 路径区分: `/t/{tenant_slug}/...`
+- 租户数据通过 `tenant_id` 外键隔离
+- 租户中间件提取 URL 中的 tenant_slug 并注入到请求上下文
 
-## 数据导入
-- Excel 导入使用 pandas + openpyxl，导入前必须校验数据完整性
-- 导入失败必须回滚（使用 transaction.atomic）
-- 导入结果必须返回成功/失败明细
+---
 
-===============================================================================
-# 三、前端规则（Django Templates）
+## 二、后端规范 (FastAPI)
 
-1. 所有页面继承 base.html，禁止重复引入 CSS/JS
-2. 使用 Bootstrap 5 栅格系统，禁止自定义复杂布局
-3. 图片使用懒加载（loading="lazy"），头像使用默认占位图
-4. 族谱树形展示使用 SVG 或 Canvas，禁止用 table 嵌套模拟树形
-5. 表单提交必须有 CSRF token（{% csrf_token %}）
-6. Ajax 请求统一使用 fetch API，禁止 jQuery.ajax（保持代码统一）
-7. 所有用户输入在前端做基础校验，后端做完整校验
+### 2.1 API 端点结构
 
-===============================================================================
-# 四、命名与代码风格
+```
+backend/app/api/v1/endpoints/
+├── auth.py           # POST /auth/login, /auth/register
+├── persons.py        # CRUD /persons
+├── families.py       # 家庭关系
+├── branches.py       # 支系管理
+├── generations.py    # 世代管理
+├── family_tree.py    # 族谱树
+├── search.py         # 搜索
+├── import_data.py    # Excel 导入
+├── export.py         # Excel 导出
+├── files.py          # 文件上传
+├── tenants.py        # 租户管理
+├── subscriptions.py  # 订阅管理
+└── analytics.py      # 统计分析
+```
 
-- Python：snake_case，类名 PascalCase
-- 模板文件：{app}/{功能}.html，如 genealogy/person_detail.html
-- URL name：{动词}_{名词}，如 person_detail、branch_list
-- 静态文件：{app}/css/、{app}/js/、{app}/images/ 分目录存放
+### 2.2 API 响应格式
 
-===============================================================================
-# 五、AI 代码生成要求
+```python
+# 成功响应
+{"data": {...}, "message": "success"}
 
-1. 生成的视图必须包含权限检查
-2. 生成的模板必须继承 base.html，包含响应式布局
-3. 涉及文件上传必须包含类型和大小校验
-4. 数据库操作涉及多步骤必须使用 transaction.atomic
-5. 生成的查询必须避免 N+1，主动添加 select_related/prefetch_related
+# 错误响应
+{"detail": "错误信息"}
+```
 
-===============================================================================
-# 六、优化工作规则（成型项目迭代优化）
+### 2.3 权限规范
 
-## 基本原则
-1. 优化前必须理解现有实现，禁止在未读懂代码的情况下重写
-2. 每次优化范围最小化，一次只改一个模块或一个问题
-3. 禁止在优化过程中顺手重构无关代码（范围蔓延）
-4. 族谱数据具有历史价值，任何涉及数据删除的操作必须二次确认
+| 端点类型 | 权限要求 |
+|---------|---------|
+| 只读 (浏览族谱) | 匿名可访问 |
+| 用户操作 (注册/登录) | 公开 |
+| 数据修改 (增删改) | 需要 JWT token |
+| 管理功能 | 需要 admin 角色 |
 
-## 改动前检查
-- 确认改动影响范围：哪些视图、哪些模板、哪些关联模型
-- 数据库变更必须评估对存量族谱数据的影响，提供迁移方案
-- 涉及人物关系（父子/配偶）的改动必须梳理所有关联查询
+### 2.4 数据库查询规范
 
-## 代码改动规范
-- 修改现有视图/函数前，先理解其所有调用方和模板引用
-- 重命名 URL name 必须全局搜索所有 reverse() 和 {% url %} 引用并同步更新
-- 删除代码前确认无其他模板或视图依赖，用全局搜索确认
-- 性能优化必须先确认 N+1 问题的具体位置（Django Debug Toolbar 或日志）
+- 列表查询使用分页: `skip`, `limit`
+- 使用 `select_related` 减少关联查询
+- 敏感操作使用 `transaction.atomic`
 
-## 模板改动规范
-- 修改 base.html 前评估所有继承页面的影响
-- 新增模板标签/过滤器必须在 templatetags/ 中注册，禁止在模板中写复杂逻辑
-- 静态文件改动后需重新 collectstatic
+---
 
-## 数据库变更规范
-- 禁止直接修改已有字段类型
-- 新增字段必须 null=True 或有 default
-- 删除字段分两步：先停止写入 → 确认无数据依赖 → 再删除
-- 每次 migration 只做一件事
+## 三、前端规范 (Next.js)
 
-## 验证规范
-- 改动后必须手动验证族谱核心功能：人物浏览、关系展示、图片上传
+### 3.1 路由结构
+
+```
+frontend/app/
+├── login/page.tsx              # 登录页
+├── register/page.tsx           # 注册页
+├── [tenant]/                   # 租户页面
+│   ├── persons/[id]/page.tsx   # 人物详情
+│   └── admin/                  # 管理后台
+├── t/[tenant]/                 # 租户管理
+│   ├── persons/page.tsx        # 人物列表
+│   ├── family-tree/page.tsx    # 族谱树
+│   ├── branches/page.tsx       # 支系列表
+│   ├── generations/page.tsx    # 世代列表
+│   ├── import/page.tsx         # 数据导入
+│   ├── export/page.tsx         # 数据导出
+│   └── analytics/page.tsx      # 统计分析
+└── dashboard/page.tsx          # 租户选择页
+```
+
+### 3.2 组件结构
+
+```
+components/
+├── ui/                    # shadcn/ui 基础组件
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── dialog.tsx
+│   ├── input.tsx
+│   ├── select.tsx
+│   ├── table.tsx
+│   └── ...
+├── family-tree/           # 族谱树组件
+│   ├── FamilyTreeCanvas.tsx
+│   └── FamilyTreePage.tsx
+└── admin/                 # 管理组件
+    ├── AdminDashboard.tsx
+    └── ...
+```
+
+### 3.3 状态管理
+
+- **服务端状态**: TanStack Query (React Query)
+- **客户端状态**: React useState/useReducer
+- **全局状态**: Zustand (如需要)
+
+### 3.4 API 调用
+
+使用 `lib/api.ts` 中的 `ApiClient`:
+
+```typescript
+import { api } from "@/lib/api"
+
+// GET 请求
+const data = await api.get<Person[]>('/persons', { tenant: 'xxx' })
+
+// POST 请求
+const result = await api.post('/persons', { name: '张三', gender: 'M' })
+```
+
+### 3.5 样式规范
+
+- 使用 Tailwind CSS
+- 颜色变量定义在 `tailwind.config.ts`
+- 组件样式优先使用 shadcn/ui
+
+---
+
+## 四、代码风格
+
+### 4.1 Python (后端)
+
+- 遵循 PEP 8
+- 使用类型注解
+- 异步函数使用 `async def`
+- 导入排序: 标准库 -> 第三方库 -> 本地模块
+
+```python
+from typing import Optional, List
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.models.tenant import Person
+
+router = APIRouter()
+
+@router.get("/persons", response_model=List[Person])
+async def list_persons(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db)
+):
+    ...
+```
+
+### 4.2 TypeScript (前端)
+
+- 使用 TypeScript 5
+- 接口命名: PascalCase
+- 类型命名: PascalCase
+- 变量/函数命名: camelCase
+
+```typescript
+interface Person {
+  id: string
+  name: string
+  gender: 'M' | 'F'
+  generation_number?: number
+}
+
+async function fetchPersons(tenant: string): Promise<Person[]> {
+  return api.get<Person[]>(`/t/${tenant}/persons`)
+}
+```
+
+---
+
+## 五、文件上传规范
+
+### 5.1 限制
+
+| 类型 | 大小限制 | 格式 |
+|------|---------|------|
+| 头像图片 | 5MB | JPG, PNG, GIF, WebP |
+| 族谱图片 | 10MB | JPG, PNG, PDF |
+| 视频 | 100MB | MP4, AVI, MOV |
+
+### 5.2 上传流程
+
+1. 前端校验文件类型和大小
+2. FormData 提交到 `/files/upload`
+3. 后端验证并存储到 `media/` 目录
+4. 返回文件 URL
+
+---
+
+## 六、安全规范
+
+1. **密码存储**: 使用 bcrypt 加密
+2. **JWT**: HS256 算法，设置过期时间
+3. **CORS**: 仅允许配置的域名
+4. **输入验证**: 使用 Pydantic 模型验证
+5. **SQL注入**: 使用 SQLAlchemy ORM
+6. **XSS**: React 默认转义
+
+---
+
+## 七、命名规范
+
+| 类型 | 规范 | 示例 |
+|------|------|------|
+| API 路径 | kebab-case | `/family-tree` |
+| 文件名 | kebab-case | `family-tree-page.tsx` |
+| React 组件 | PascalCase | `FamilyTreePage` |
+| 函数 | camelCase | `fetchPersons` |
+| Python 函数 | snake_case | `get_person_by_id` |
+| 数据库表 | snake_case | `family_members` |
+| API 响应字段 | snake_case | `generation_number` |
+
+---
+
+## 八、AI 代码生成要求
+
+### 8.1 后端 API
+
+1. 必须包含参数验证 (Pydantic model)
+2. 必须处理异常情况
+3. 必须返回标准响应格式
+4. 必须添加权限检查装饰器
+
+### 8.2 前端页面
+
+1. 使用 `use client` 指令 (客户端组件)
+2. 使用 TanStack Query 进行数据获取
+3. 必须处理 loading 和 error 状态
+4. 必须包含响应式布局
+5. 必须使用 `cn()` 合并类名
+
+### 8.3 组件
+
+1. 遵循 shadcn/ui 组件模式
+2. 使用 `forwardRef` 处理 ref
+3. 使用 `class-variance-authority` 处理样式变体
+
+---
+
+## 九、优化工作规则
+
+### 9.1 基本原则
+
+1. 优化前必须理解现有实现
+2. 每次优化范围最小化
+3. 禁止在优化中顺手重构无关代码
+4. 族谱数据有历史价值，删除操作需二次确认
+
+### 9.2 改动前检查
+
+- 确认改动影响范围
+- 数据库变更评估对存量数据的影响
+- 涉及人物关系的改动必须梳理关联查询
+
+### 9.3 验证规范
+
+- 改动后必须手动验证核心功能
 - 涉及数据库变更必须先在备份数据上验证
-- 性能优化必须有前后对比（页面加载时间、SQL 查询次数）
+- 性能优化必须有前后对比
+
+---
+
+## 十、目录结构总览
+
+```
+liu_genealogy/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/endpoints/   # API 端点
+│   │   ├── core/              # 核心配置
+│   │   ├── middleware/         # 中间件
+│   │   ├── models/             # 数据模型
+│   │   ├── services/           # 业务服务
+│   │   └── main.py            # 应用入口
+│   ├── tests/                 # 测试
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── app/                   # 页面路由
+│   ├── components/             # 组件
+│   │   ├── ui/               # shadcn/ui
+│   │   ├── family-tree/      # 族谱树
+│   │   └── admin/            # 管理
+│   ├── lib/                   # 工具库
+│   │   ├── api.ts           # API 客户端
+│   │   └── utils.ts         # 工具函数
+│   └── package.json
+│
+├── docker/                    # Docker 配置
+├── docs/                      # 文档
+│   └── 刘氏族谱资料/          # 原始族谱数据
+├── scripts/                   # 工具脚本
+├── README.md                  # 项目说明
+└── AGENTS.md                  # 开发规范
+```
