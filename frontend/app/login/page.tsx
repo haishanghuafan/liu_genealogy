@@ -3,12 +3,14 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Eye, EyeOff } from "lucide-react"
 import { api } from "@/lib/api"
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   
@@ -18,15 +20,15 @@ export default function LoginPage() {
     setLoading(true)
     
     try {
-      const response = await api.post("/auth/login", { email, password })
-      const { access_token, refresh_token } = response.data
+      const data = await api.post("/auth/login", { email, password })
+      const { access_token, refresh_token } = data
       
       localStorage.setItem("access_token", access_token)
       localStorage.setItem("refresh_token", refresh_token)
       
       router.push("/dashboard")
     } catch (err: any) {
-      setError(err.response?.data?.detail || "登录失败，请检查邮箱和密码")
+      setError(err.message || "登录失败，请检查邮箱和密码")
     } finally {
       setLoading(false)
     }
@@ -106,15 +108,29 @@ export default function LoginPage() {
                   忘记密码？
                 </Link>
               </div>
-              <input
-                id="password"
-                type="password"
-                className="w-full px-4 py-3 rounded-lg border border-ink/10 bg-white focus:border-vermillion focus:ring-2 focus:ring-vermillion/20 outline-none transition-all"
-                placeholder="输入密码"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  className="w-full px-4 py-3 pr-12 rounded-lg border border-ink/10 bg-white focus:border-vermillion focus:ring-2 focus:ring-vermillion/20 outline-none transition-all"
+                  placeholder="输入密码"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
             </div>
             
             {error && (

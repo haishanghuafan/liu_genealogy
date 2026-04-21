@@ -47,8 +47,28 @@ export default function GenerationsPage() {
   const [success, setSuccess] = useState("")
   
   useEffect(() => {
+    trackPageVisit()
     fetchGenerations()
   }, [tenantSlug])
+  
+  const trackPageVisit = async () => {
+    try {
+      const token = localStorage.getItem("access_token") || ""
+      await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/analytics/track`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: `/t/${tenantSlug}/generations`,
+          page_type: "generation",
+        }),
+      })
+    } catch (err) {
+      console.debug("Failed to track visit:", err)
+    }
+  }
   
   const fetchGenerations = async () => {
     try {

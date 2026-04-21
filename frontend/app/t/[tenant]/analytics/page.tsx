@@ -32,8 +32,30 @@ export default function AnalyticsPage() {
   const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
   
   useEffect(() => {
+    // Track page visit
+    trackPageVisit()
     fetchAnalytics()
   }, [tenantSlug])
+  
+  const trackPageVisit = async () => {
+    try {
+      const token = localStorage.getItem("access_token") || ""
+      await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/analytics/track`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: `/t/${tenantSlug}/analytics`,
+          page_type: "analytics",
+        }),
+      })
+    } catch (err) {
+      // Silently fail - analytics should not break the page
+      console.debug("Failed to track visit:", err)
+    }
+  }
   
   const fetchAnalytics = async () => {
     try {
@@ -41,8 +63,8 @@ export default function AnalyticsPage() {
       const headers = { "Authorization": `Bearer ${token}` }
       
       const [summaryRes, dailyRes] = await Promise.all([
-        fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/analytics/summary?days=30`, { headers }),
-        fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/analytics/daily?days=30`, { headers }),
+        fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/analytics/summary?days=30`, { headers }),
+        fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/analytics/daily?days=30`, { headers }),
       ])
       
       const summaryData = await summaryRes.json()

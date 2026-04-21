@@ -17,6 +17,7 @@ from app.core.security import (
     verify_password,
     verify_token,
 )
+from app.middleware.auth import get_current_user_required
 from app.models import User
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -206,15 +207,9 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    user: User = Depends(lambda: None),  # TODO: Use proper auth dependency
+    user: User = Depends(get_current_user_required),
 ):
     """Get current user info"""
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    
     return UserResponse(
         id=str(user.id),
         email=user.email,

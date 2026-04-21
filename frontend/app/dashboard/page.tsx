@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
 
 interface UserInfo {
   id: string
@@ -38,31 +39,19 @@ export default function DashboardPage() {
     
     try {
       // Get current user info
-      const meRes = await fetch("http://localhost:8000/api/v1/auth/me", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      
-      if (!meRes.ok) {
-        throw new Error("Unauthorized")
-      }
-      
-      const meData = await meRes.json()
+      const meData = await api.get("/auth/me")
       setUser(meData)
       
-      // Get user's tenants - we'll fetch from a new endpoint
-      // For now, fetch all tenants and filter by user's access
-      const tenantsRes = await fetch("http://localhost:8000/api/v1/tenants", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      
-      if (tenantsRes.ok) {
-        const tenantsData = await tenantsRes.json()
-        // This is a placeholder - real implementation would use a user-tenants endpoint
-        setTenants([])
+      // Get all tenants and filter by user's access
+      const tenantsData = await api.get("/tenants")
+      setTenants(tenantsData.data || [])
+    } catch (err: any) {
+      if (err.message?.includes("Unauthorized") || err.message?.includes("Not authenticated") || err.message?.includes("401")) {
+        localStorage.removeItem("access_token")
+        router.push("/login")
+      } else {
+        console.error("Failed to fetch data:", err)
       }
-    } catch (err) {
-      console.error("Failed to fetch data:", err)
-      // Keep loading state for now
     } finally {
       setLoading(false)
     }
@@ -139,25 +128,25 @@ export default function DashboardPage() {
           {tenants.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {tenants.map((tenant) => (
-                <Link
+                <div
                   key={tenant.id}
-                  href={`/t/${tenant.slug}`}
                   className="bg-white rounded-xl p-6 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">{tenant.name}</h3>
-                    <span className="text-xs px-2 py-1 bg-vermillion/10 text-vermillion rounded">
-                      {tenant.role === "tenant_admin" ? "管理员" : "成员"}
-                    </span>
-                  </div>
-                  <div className="text-sm text-ink-muted">
-                    套餐: {tenant.plan === "free" ? "免费版" : tenant.plan}
-                  </div>
+                  <Link href={`/t/${tenant.slug}`} className="block">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">{tenant.name}</h3>
+                      <span className="text-xs px-2 py-1 bg-vermillion/10 text-vermillion rounded">
+                        {tenant.role === "tenant_admin" ? "管理员" : "成员"}
+                      </span>
+                    </div>
+                    <div className="text-sm text-ink-muted">
+                      套餐: {tenant.plan === "free" ? "免费版" : tenant.plan}
+                    </div>
+                  </Link>
                   <div className="mt-3 flex gap-2">
                     <Link 
                       href={`/t/${tenant.slug}/subscription`}
                       className="text-sm text-vermillion hover:underline"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       💎 订阅管理
                     </Link>
@@ -165,13 +154,12 @@ export default function DashboardPage() {
                       <Link 
                         href={`/t/${tenant.slug}/members`}
                         className="text-sm text-vermillion hover:underline"
-                        onClick={(e) => e.stopPropagation()}
                       >
                         👥 成员管理
                       </Link>
                     )}
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           ) : (

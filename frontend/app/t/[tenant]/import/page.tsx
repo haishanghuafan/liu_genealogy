@@ -85,7 +85,7 @@ export default function ImportExcelPage() {
       
       const data = await res.json()
       if (data.success) {
-        // Create CSV template (simpler than Excel)
+        // Create Excel-compatible CSV template with UTF-8 BOM for Excel
         const headers = [
           "name", "gender", "generation_number", "branch_name",
           "father_name", "mother_name", "courtesy_name", "art_name",
@@ -97,16 +97,18 @@ export default function ImportExcelPage() {
           ["刘盈", "M", "2", "", "刘邦", "", "", "", "-210", "-188", "", "", "1"]
         ]
         
-        let csv = headers.join(",") + "\n"
+        // Add UTF-8 BOM for Excel to recognize Chinese characters
+        let csv = "\ufeff" + headers.join(",") + "\n"
         examples.forEach(row => {
           csv += row.join(",") + "\n"
         })
         
-        const blob = new Blob([csv], { type: 'text/csv' })
+        // Use .xlsx extension and appropriate MIME type
+        const blob = new Blob([csv], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = '人物导入模板.csv'
+        a.download = '人物导入模板.xlsx'
         a.click()
         URL.revokeObjectURL(url)
       }
@@ -159,7 +161,7 @@ export default function ImportExcelPage() {
             </div>
             <Button onClick={handleDownloadTemplate} variant="outline" size="sm">
               <FileSpreadsheet className="h-4 w-4 mr-2" />
-              下载 CSV 模板
+              下载 Excel 模板
             </Button>
           </CardContent>
         </Card>

@@ -49,8 +49,8 @@ export default function PersonsPage() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
-  const [generationFilter, setGenerationFilter] = useState<string>("")
-  const [genderFilter, setGenderFilter] = useState<string>("")
+  const [generationFilter, setGenerationFilter] = useState<string>("all")
+  const [genderFilter, setGenderFilter] = useState<string>("all")
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingPerson, setEditingPerson] = useState<Person | null>(null)
@@ -67,8 +67,28 @@ export default function PersonsPage() {
   const [formSuccess, setFormSuccess] = useState("")
 
   useEffect(() => {
+    trackPageVisit()
     fetchPersons()
   }, [tenantSlug, page, search, generationFilter, genderFilter])
+  
+  const trackPageVisit = async () => {
+    try {
+      const token = localStorage.getItem("access_token") || ""
+      await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/analytics/track`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: `/t/${tenantSlug}/persons`,
+          page_type: "person",
+        }),
+      })
+    } catch (err) {
+      console.debug("Failed to track visit:", err)
+    }
+  }
 
   const fetchPersons = async () => {
     setLoading(true)
@@ -78,8 +98,8 @@ export default function PersonsPage() {
         page_size: "20",
       })
       if (search) queryParams.append("search", search)
-      if (generationFilter) queryParams.append("generation", generationFilter)
-      if (genderFilter) queryParams.append("gender", genderFilter)
+      if (generationFilter && generationFilter !== "all") queryParams.append("generation", generationFilter)
+      if (genderFilter && genderFilter !== "all") queryParams.append("gender", genderFilter)
 
       const response = await api.get(`/t/${tenantSlug}/persons?${queryParams}`)
       if (response.success) {
@@ -218,7 +238,7 @@ export default function PersonsPage() {
                   <SelectValue placeholder="世代" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部世代</SelectItem>
+                  <SelectItem value="all">全部世代</SelectItem>
                   <SelectItem value="1">第1世</SelectItem>
                   <SelectItem value="2">第2世</SelectItem>
                   <SelectItem value="3">第3世</SelectItem>
@@ -230,7 +250,7 @@ export default function PersonsPage() {
                   <SelectValue placeholder="性别" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部</SelectItem>
+                  <SelectItem value="all">全部</SelectItem>
                   <SelectItem value="M">男</SelectItem>
                   <SelectItem value="F">女</SelectItem>
                 </SelectContent>

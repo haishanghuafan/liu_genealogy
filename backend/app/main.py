@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.database import db_manager
 from app.core.services import connect_services, disconnect_services
 from app.middleware.tenant import TenantMiddleware
+from app.middleware.analytics import AnalyticsMiddleware
 
 
 @asynccontextmanager
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Create database tables
     from app.models import Tenant, User, TenantUser, Subscription
     from app.models.tenant import Person, Generation, Branch, SpouseRelation
+    from app.models.tenant import PageView, DailyVisitStats
     async with db_manager._default_engine.begin() as conn:
         from app.core.database import Base
         await conn.run_sync(Base.metadata.create_all)
@@ -73,6 +75,9 @@ def create_application() -> FastAPI:
     
     # Tenant middleware
     app.add_middleware(TenantMiddleware)
+    
+    # Analytics middleware (after tenant to have access to tenant info)
+    app.add_middleware(AnalyticsMiddleware)
     
     # Include API routes
     app.include_router(api_router, prefix=settings.api_v1_prefix)

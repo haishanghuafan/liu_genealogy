@@ -33,7 +33,7 @@ export default function RecordsPage() {
   const fetchRecords = async () => {
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/records`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/records`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       const data = await res.json()

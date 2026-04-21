@@ -25,13 +25,13 @@ export default function TenantHomePage() {
   
   const fetchTenant = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/tenants/${tenantSlug}`)
+      const res = await fetch(`http://localhost:8012/api/v1/tenants/${tenantSlug}`)
       const data = await res.json()
       if (data.success !== false) {
         setTenant(data)
       }
     } catch (err) {
-      console.error("Failed to load tenant")
+      console.error("Failed to load tenant:", err)
     } finally {
       setLoading(false)
     }
@@ -134,7 +134,7 @@ export default function TenantHomePage() {
           </Link>
           
           <Link
-            href={`/t/${tenantSlug}/admin/persons`}
+            href={`/t/${tenantSlug}/persons`}
             className="bg-white rounded-xl p-8 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1 group"
           >
             <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">👤</div>

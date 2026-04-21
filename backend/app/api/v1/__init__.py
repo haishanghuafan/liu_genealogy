@@ -13,7 +13,7 @@ from app.api.v1.endpoints import (
     settings,
     files,
     search,
-    analytics_endpoints as analytics,
+    analytics,
     records,
     export,
     branches,

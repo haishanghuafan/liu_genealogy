@@ -44,6 +44,29 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree")
 
+  useEffect(() => {
+    trackPageVisit()
+  }, [tenantSlug])
+
+  const trackPageVisit = async () => {
+    try {
+      const token = localStorage.getItem("access_token") || ""
+      await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/analytics/track`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: `/t/${tenantSlug}/family-tree`,
+          page_type: "family_tree",
+        }),
+      })
+    } catch (err) {
+      console.debug("Failed to track visit:", err)
+    }
+  }
+
   const handleNodeClick = (personId: string) => {
     // Fetch person details
     fetchPersonDetails(personId)

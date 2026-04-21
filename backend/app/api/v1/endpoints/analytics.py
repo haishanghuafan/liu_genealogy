@@ -6,199 +6,139 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_tenant_db, get_db
+from app.core.database import get_tenant_db
 from app.middleware.tenant import require_tenant
 from app.middleware.auth import get_current_user_required
-from app.models.analytics import DailyVisitStats, PageVisitStats, TenantStats
+from app.models.tenant import DailyVisitStats, PageView
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
-# ============ Schemas ============
+# ============ Page Visit Tracking ============
 
-class VisitTrend(BaseModel):
-    date: str
-    visits: int
-    unique_visitors: int
-    unique_ips: int
-
-
-class PageStats(BaseModel):
+class TrackVisitRequest(BaseModel):
     path: str
-    total_visits: int
-    unique_visitors: int
-    last_visit: str
+    page_type: Optional[str] = "page"
 
 
-class TenantStatsResponse(BaseModel):
-    persons: dict
-    generations: dict
-    branches: int
-    members: dict
-    media: dict
-    visits: dict
-    last_updated: Optional[str]
+@router.post("/track", response_model=dict)
+async def track_page_visit(
+    request: Request,
+    track_req: TrackVisitRequest,
+    db: AsyncSession = Depends(get_tenant_db),
+    user = Depends(get_current_user_required),
+):
+    """Track a page visit from frontend"""
+    tenant = require_tenant(request)
+    
+    from app.services.analytics_service import AnalyticsService
+    
+    # Get client info from request
+    ip_address = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() if request.headers.get("X-Forwarded-For") else (request.client.host if request.client else "0.0.0.0")
+    user_agent = request.headers.get("User-Agent")
+    
+    service = AnalyticsService(db)
+    
+    await service.track_page_view(
+        page_type=track_req.page_type or "page",
+        tenant_slug=tenant.slug,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        user_id=user.id,
+        is_authenticated=True,
+    )
+    
+    return {"success": True}
 
 
-class AnalyticsDashboardResponse(BaseModel):
-    success: bool = True
-    data: dict
+# ============ Summary Statistics ============
 
-
-# ============ Endpoints ============
-
-@router.get("/dashboard", response_model=AnalyticsDashboardResponse)
-async def get_dashboard(
+@router.get("/summary", response_model=dict)
+async def get_analytics_summary(
     request: Request,
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_tenant_db),
     user = Depends(get_current_user_required),
 ):
-    """Get comprehensive analytics dashboard data"""
+    """Get summary statistics for the last N days"""
     tenant = require_tenant(request)
     
-    # Get tenant stats
-    from app.services.visit_tracker import visit_tracker
-    stats = await visit_tracker.get_tenant_stats(db, tenant.id)
+    from app.services.analytics_service import AnalyticsService
     
-    # Get visit trends
-    trends = await visit_tracker.get_visit_trends(db, tenant.id, days)
+    service = AnalyticsService(db)
+    stats = await service.get_summary_stats(tenant.slug, days)
     
-    # Get top pages
-    top_pages = await _get_top_pages(db, tenant.id, 10)
-    
-    return AnalyticsDashboardResponse(
-        data={
-            "stats": stats,
-            "trends": trends,
-            "top_pages": top_pages,
-        }
-    )
+    return {
+        "success": True,
+        "data": stats
+    }
 
 
-@router.get("/trends", response_model=dict)
-async def get_visit_trends(
+# ============ Daily Statistics ============
+
+@router.get("/daily", response_model=dict)
+async def get_daily_stats(
     request: Request,
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_tenant_db),
     user = Depends(get_current_user_required),
 ):
-    """Get visit trends for the last N days"""
+    """Get daily statistics for the last N days"""
     tenant = require_tenant(request)
     
-    from app.services.visit_tracker import visit_tracker
-    trends = await visit_tracker.get_visit_trends(db, tenant.id, days)
+    from app.services.analytics_service import AnalyticsService
+    
+    service = AnalyticsService(db)
+    daily_stats = await service.get_daily_stats(tenant.slug, days)
     
     return {
         "success": True,
-        "data": trends,
-        "meta": {
-            "days": days,
-            "tenant_id": str(tenant.id),
-        },
+        "data": [
+            {
+                "date": stat.date.isoformat() if hasattr(stat.date, 'isoformat') else str(stat.date),
+                "total_views": stat.total_views,
+                "unique_visitors": stat.unique_visitors,
+                "authenticated_views": getattr(stat, 'authenticated_views', 0),
+                "anonymous_views": getattr(stat, 'anonymous_views', 0),
+                "person_views": getattr(stat, 'person_views', 0),
+                "branch_views": getattr(stat, 'branch_views', 0),
+                "generation_views": getattr(stat, 'generation_views', 0),
+                "family_tree_views": getattr(stat, 'family_tree_views', 0),
+            }
+            for stat in daily_stats
+        ]
     }
 
 
-@router.get("/top-pages", response_model=dict)
-async def get_top_pages(
+# ============ Popular Pages ============
+
+@router.get("/popular", response_model=dict)
+async def get_popular_pages(
     request: Request,
-    limit: int = Query(20, ge=1, le=100),
+    page_type: Optional[str] = None,
+    days: int = Query(7, ge=1, le=30),
+    limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_tenant_db),
     user = Depends(get_current_user_required),
 ):
-    """Get top visited pages"""
+    """Get most viewed pages"""
     tenant = require_tenant(request)
     
-    pages = await _get_top_pages(db, tenant.id, limit)
+    from app.services.analytics_service import AnalyticsService
+    
+    service = AnalyticsService(db)
+    popular = await service.get_popular_pages(
+        tenant.slug,
+        page_type=page_type,
+        days=days,
+        limit=limit,
+    )
     
     return {
         "success": True,
-        "data": pages,
+        "data": popular
     }
-
-
-@router.get("/realtime", response_model=dict)
-async def get_realtime_stats(
-    request: Request,
-    db: AsyncSession = Depends(get_tenant_db),
-    user = Depends(get_current_user_required),
-):
-    """Get real-time visit statistics (last hour)"""
-    tenant = require_tenant(request)
-    
-    from datetime import datetime, timezone
-    from app.models.analytics import PageView
-    
-    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-    
-    # Get visits in last hour
-    stmt = select(func.count()).select_from(PageView).where(
-        and_(
-            PageView.tenant_id == tenant.id,
-            PageView.timestamp >= one_hour_ago,
-        )
-    )
-    result = await db.execute(stmt)
-    visits_last_hour = result.scalar() or 0
-    
-    # Get unique IPs in last hour
-    stmt = select(func.count(func.distinct(PageView.ip_address))).select_from(
-        PageView
-    ).where(
-        and_(
-            PageView.tenant_id == tenant.id,
-            PageView.timestamp >= one_hour_ago,
-        )
-    )
-    result = await db.execute(stmt)
-    unique_ips_last_hour = result.scalar() or 0
-    
-    # Get active users (last 15 min)
-    fifteen_min_ago = datetime.now(timezone.utc) - timedelta(minutes=15)
-    stmt = select(func.count(func.distinct(PageView.user_id))).select_from(
-        PageView
-    ).where(
-        and_(
-            PageView.tenant_id == tenant.id,
-            PageView.timestamp >= fifteen_min_ago,
-            PageView.user_id != None,
-        )
-    )
-    result = await db.execute(stmt)
-    active_users = result.scalar() or 0
-    
-    return {
-        "success": True,
-        "data": {
-            "visits_last_hour": visits_last_hour,
-            "unique_visitors_last_hour": unique_ips_last_hour,
-            "active_users": active_users,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        },
-    }
-
-
-# ============ Helper Functions ============
-
-async def _get_top_pages(db: AsyncSession, tenant_id: UUID, limit: int) -> list[dict]:
-    """Get top visited pages for a tenant"""
-    stmt = select(PageVisitStats).where(
-        PageVisitStats.tenant_id == tenant_id
-    ).order_by(PageVisitStats.total_visits.desc()).limit(limit)
-    
-    result = await db.execute(stmt)
-    pages = result.scalars().all()
-    
-    return [
-        {
-            "path": p.path,
-            "total_visits": p.total_visits,
-            "unique_visitors": p.unique_visitors,
-            "last_visit": p.last_visit.isoformat() if p.last_visit else None,
-        }
-        for p in pages
-    ]
