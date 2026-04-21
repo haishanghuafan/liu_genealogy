@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 
@@ -168,31 +168,77 @@ function FamilyListView({
 }) {
   const [persons, setPersons] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  
-  useState(() => {
-    // Mock data for demo
-    setPersons([
-      { id: "1", name: "刘伯温", generation: 1, gender: "M", birthYear: 1311, deathYear: 1375 },
-      { id: "2", name: "刘璟", generation: 2, gender: "M", birthYear: 1350, deathYear: 1400 },
-      { id: "3", name: "刘昌", generation: 3, gender: "M", birthYear: 1380 },
-      { id: "4", name: "刘铭", generation: 4, gender: "M", birthYear: 1410 },
-      { id: "5", name: "刘芳", generation: 4, gender: "F", birthYear: 1415 },
-    ])
-    setLoading(false)
-  })
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const pageSize = 30
+
+  useEffect(() => {
+    fetchPersons(currentPage)
+  }, [tenantSlug, currentPage])
+
+  const fetchPersons = async (page: number) => {
+    try {
+      setLoading(true)
+      const res = await fetch(`/api/v1/t/${tenantSlug}/persons?page=${page}&page_size=${pageSize}`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        setPersons(data.data)
+        setTotalCount(data.meta?.total ?? data.data.length)
+        setTotalPages(data.meta?.total_pages ?? 1)
+      }
+    } catch (error) {
+      console.error("Failed to fetch persons:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
+  }
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = []
+    const maxVisible = 5
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i)
+        pages.push('...')
+        pages.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1)
+        pages.push('...')
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i)
+      } else {
+        pages.push(1)
+        pages.push('...')
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i)
+        pages.push('...')
+        pages.push(totalPages)
+      }
+    }
+    return pages
+  }
   
   if (loading) {
     return <div className="p-8 text-center text-ink-muted">加载中...</div>
   }
   
   return (
-    <div className="p-8">
+    <div className="p-8 overflow-y-auto h-full">
+      <p className="text-sm text-ink-muted mb-4">共 {totalCount} 位成员</p>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {persons.map((person) => (
           <button
             key={person.id}
             onClick={() => onPersonClick(person.id)}
-            className="paper-card p-4 text-left hover:border-vermillion/20"
+            className="paper-card p-4 text-left hover:border-vermillion/20 bg-white rounded-xl border border-ink/5"
           >
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-medium ${
@@ -203,16 +249,60 @@ function FamilyListView({
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{person.name}</div>
                 <div className="text-xs text-ink-muted">
-                  第{person.generation}世 · {person.gender === "F" ? "女" : "男"}
+                  {person.generation_id ? `第${person.generation_id}世 · ` : ""}
+                  {person.gender === "F" ? "女" : "男"}
                 </div>
               </div>
             </div>
             <div className="mt-2 text-xs text-ink-muted">
-              {person.birthYear && `生卒: ${person.birthYear}${person.deathYear ? `-${person.deathYear}` : ""}`}
+              {person.birth_year && `生卒: ${person.birth_year}${person.death_year ? `-${person.death_year}` : ""}`}
             </div>
           </button>
         ))}
       </div>
+
+      {/* Pagination */}
+      <div className="mt-8 flex items-center justify-center gap-2">
+        <button
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-2 rounded-lg border border-ink/10 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+        >
+          ← 上一页
+        </button>
+        
+        <div className="flex items-center gap-1">
+          {getPageNumbers().map((page, idx) => (
+            page === '...' ? (
+              <span key={idx} className="px-3 py-2 text-ink-muted">...</span>
+            ) : (
+              <button
+                key={idx}
+                onClick={() => goToPage(page as number)}
+                className={`px-3 py-2 rounded-lg ${
+                  currentPage === page
+                    ? 'bg-vermillion text-white'
+                    : 'border border-ink/10 bg-white hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            )
+          ))}
+        </div>
+
+        <button
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-2 rounded-lg border border-ink/10 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+        >
+          下一页 →
+        </button>
+      </div>
+
+      <p className="text-center text-sm text-ink-muted mt-4">
+        第 {currentPage} / {totalPages} 页
+      </p>
     </div>
   )
 }

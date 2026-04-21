@@ -4,7 +4,6 @@ Initialize Liu Family Genealogy Database
 import asyncio
 import sys
 import uuid
-from datetime import datetime
 
 sys.path.insert(0, ".")
 
@@ -24,7 +23,6 @@ async def init_database():
 
 
 async def create_tenant():
-    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy import select
 
     session_maker = db_manager.get_session_maker("public")
@@ -82,9 +80,17 @@ async def create_tenant():
         return tenant
 
 
+def _get_base_name(name: str) -> str:
+    name = name.strip()
+    suffixes = ["公", "郎"]
+    for suffix in suffixes:
+        if name.endswith(suffix) and len(name) > 1:
+            return name[:-1]
+    return name
+
+
 async def import_excel_data(tenant: Tenant):
     import pandas as pd
-    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy import select
 
     excel_path = "d:/GitHub/liu_genealogy/docs/刘氏族谱资料/genealogy_data.xlsx"
@@ -104,6 +110,10 @@ async def import_excel_data(tenant: Tenant):
         gen_map = {}
         for _, row in df_generations.iterrows():
             if pd.notna(row.get("世代数")):
+                is_spouse_gen = str(row.get("是否为配偶世代", "否")).strip() == "是"
+                if is_spouse_gen:
+                    continue
+
                 gen_num = int(row["世代数"])
                 gen_name = str(row["世代名称"]) if pd.notna(row.get("世代名称")) else f"第{gen_num}世"
                 gen = Generation(
@@ -117,7 +127,7 @@ async def import_excel_data(tenant: Tenant):
                 gen_map[gen_num] = gen.id
 
         await session.flush()
-        print(f"[OK] Imported {len(gen_map)} generations")
+        print(f"[OK] Imported {len(gen_map)} generation entries")
 
         branch_map = {}
         for _, row in df_branches.iterrows():
@@ -134,30 +144,35 @@ async def import_excel_data(tenant: Tenant):
         await session.flush()
         print(f"[OK] Imported {len(branch_map)} branches")
 
+        all_persons_df = df_persons.copy()
+        all_persons_df["姓名_stripped"] = all_persons_df["姓名"].str.strip()
+        non_spouse_df = all_persons_df[all_persons_df["是否为外族配偶"].fillna("否").str.strip() != "是"].copy()
+        spouse_df = all_persons_df[all_persons_df["是否为外族配偶"].fillna("否").str.strip() == "是"].copy()
+
+        name_has_gong = {}
+        for _, row in non_spouse_df.iterrows():
+            name = str(row["姓名_stripped"])
+            if name.endswith("公") or name.endswith("郎"):
+                base = name[:-1]
+                name_has_gong[base] = name
+
         name_to_person = {}
-        skipped = 0
+        name_to_id = {}
+        merged = 0
 
-        for _, row in df_persons.iterrows():
-            name = row.get("姓名")
-            if not name or pd.isna(name):
-                skipped += 1
-                continue
+        gong_rows = non_spouse_df[non_spouse_df["姓名_stripped"].str.match(r'.+(公|郎)$')].copy()
+        non_gong_rows = non_spouse_df[~non_spouse_df["姓名_stripped"].str.match(r'.+(公|郎)$')].copy()
 
+        for _, row in gong_rows.iterrows():
+            name = str(row["姓名_stripped"])
             gender_val = row.get("性别", "男")
             gender = "M" if str(gender_val).strip() in ["男", "M"] else "F"
 
-            is_spouse = str(row.get("是否为外族配偶", "否")).strip() == "是"
-            if is_spouse:
-                skipped += 1
-                continue
-
-            gen_name = None
             gen_id = None
             if pd.notna(row.get("世代名称")):
                 gen_name = str(row["世代名称"]).strip()
                 gen_id = gen_map.get(gen_name)
 
-            branch_name = None
             branch_id = None
             if pd.notna(row.get("所属支系")):
                 branch_name = str(row["所属支系"]).strip()
@@ -165,7 +180,7 @@ async def import_excel_data(tenant: Tenant):
 
             person = Person(
                 id=uuid.uuid4(),
-                name=str(name).strip(),
+                name=name,
                 gender=gender,
                 generation_id=gen_id,
                 courtesy_name=str(row["字"]) if pd.notna(row.get("字")) else None,
@@ -188,10 +203,107 @@ async def import_excel_data(tenant: Tenant):
                 sort_order=int(row["排序"]) if pd.notna(row.get("排序")) else 0,
             )
             session.add(person)
-            name_to_person[str(name).strip()] = person
+            name_to_person[name] = person
+            name_to_id[name] = person.id
+
+            base_name = _get_base_name(name)
+            name_to_id[base_name] = person.id
+
+        for _, row in non_gong_rows.iterrows():
+            name = str(row["姓名_stripped"])
+
+            base_name = _get_base_name(name)
+            gong_name = name_has_gong.get(base_name)
+
+            if gong_name and gong_name in name_to_person:
+                name_to_id[name] = name_to_person[gong_name].id
+                merged += 1
+                continue
+
+            gender_val = row.get("性别", "男")
+            gender = "M" if str(gender_val).strip() in ["男", "M"] else "F"
+
+            gen_id = None
+            if pd.notna(row.get("世代名称")):
+                gen_name = str(row["世代名称"]).strip()
+                gen_id = gen_map.get(gen_name)
+
+            branch_id = None
+            if pd.notna(row.get("所属支系")):
+                branch_name = str(row["所属支系"]).strip()
+                branch_id = branch_map.get(branch_name)
+
+            person = Person(
+                id=uuid.uuid4(),
+                name=name,
+                gender=gender,
+                generation_id=gen_id,
+                courtesy_name=str(row["字"]) if pd.notna(row.get("字")) else None,
+                art_name=str(row["号"]) if pd.notna(row.get("号")) else None,
+                alias=str(row["别名"]) if pd.notna(row.get("别名")) else None,
+                generation_char=str(row["辈份字"]) if pd.notna(row.get("辈份字")) else None,
+                branch_id=branch_id,
+                father_id=None,
+                mother_id=None,
+                birth_year=int(row["出生年份"]) if pd.notna(row.get("出生年份")) else None,
+                death_year=int(row["逝世年份"]) if pd.notna(row.get("逝世年份")) else None,
+                birth_place=str(row["出生地"]) if pd.notna(row.get("出生地")) else None,
+                burial_place=str(row["葬地"]) if pd.notna(row.get("葬地")) else None,
+                burial_fengshui=str(row["墓形/风水"]) if pd.notna(row.get("墓形/风水")) else None,
+                burial_direction=str(row["坐向"]) if pd.notna(row.get("坐向")) else None,
+                biography=str(row["生平简介"]) if pd.notna(row.get("生平简介")) else None,
+                achievements=str(row["主要事迹"]) if pd.notna(row.get("主要事迹")) else None,
+                descendants_location=str(row["后裔分布"]) if pd.notna(row.get("后裔分布")) else None,
+                notes=str(row["备注"]) if pd.notna(row.get("备注")) else None,
+                sort_order=int(row["排序"]) if pd.notna(row.get("排序")) else 0,
+            )
+            session.add(person)
+            name_to_person[name] = person
+            name_to_id[name] = person.id
+
+        for _, row in spouse_df.iterrows():
+            name = str(row["姓名_stripped"])
+            if name in name_to_id:
+                continue
+
+            gender_val = row.get("性别", "女")
+            gender = "M" if str(gender_val).strip() in ["男", "M"] else "F"
+
+            gen_id = None
+            if pd.notna(row.get("世代名称")):
+                gen_name = str(row["世代名称"]).strip()
+                gen_id = gen_map.get(gen_name)
+
+            person = Person(
+                id=uuid.uuid4(),
+                name=name,
+                gender=gender,
+                generation_id=gen_id,
+                courtesy_name=str(row["字"]) if pd.notna(row.get("字")) else None,
+                art_name=str(row["号"]) if pd.notna(row.get("号")) else None,
+                alias=str(row["别名"]) if pd.notna(row.get("别名")) else None,
+                generation_char=str(row["辈份字"]) if pd.notna(row.get("辈份字")) else None,
+                branch_id=None,
+                father_id=None,
+                mother_id=None,
+                birth_year=int(row["出生年份"]) if pd.notna(row.get("出生年份")) else None,
+                death_year=int(row["逝世年份"]) if pd.notna(row.get("逝世年份")) else None,
+                birth_place=str(row["出生地"]) if pd.notna(row.get("出生地")) else None,
+                burial_place=str(row["葬地"]) if pd.notna(row.get("葬地")) else None,
+                burial_fengshui=str(row["墓形/风水"]) if pd.notna(row.get("墓形/风水")) else None,
+                burial_direction=str(row["坐向"]) if pd.notna(row.get("坐向")) else None,
+                biography=str(row["生平简介"]) if pd.notna(row.get("生平简介")) else None,
+                achievements=str(row["主要事迹"]) if pd.notna(row.get("主要事迹")) else None,
+                descendants_location=str(row["后裔分布"]) if pd.notna(row.get("后裔分布")) else None,
+                notes=str(row["备注"]) if pd.notna(row.get("备注")) else None,
+                sort_order=int(row["排序"]) if pd.notna(row.get("排序")) else 0,
+            )
+            session.add(person)
+            name_to_person[name] = person
+            name_to_id[name] = person.id
 
         await session.commit()
-        print(f"[OK] Imported {len(name_to_person)} persons, skipped {skipped}")
+        print(f"[OK] Imported {len(name_to_person)} unique persons, merged {merged} duplicates")
 
         spouse_count = 0
         for _, row in df_spouses.iterrows():
@@ -201,14 +313,14 @@ async def import_excel_data(tenant: Tenant):
             if pd.isna(husband_name) or pd.isna(wife_name):
                 continue
 
-            husband = name_to_person.get(str(husband_name).strip())
-            wife = name_to_person.get(str(wife_name).strip())
+            husband_id = name_to_id.get(str(husband_name).strip())
+            wife_id = name_to_id.get(str(wife_name).strip())
 
-            if husband and wife:
+            if husband_id and wife_id:
                 spouse_rel = SpouseRelation(
                     id=uuid.uuid4(),
-                    husband_id=husband.id,
-                    wife_id=wife.id,
+                    husband_id=husband_id,
+                    wife_id=wife_id,
                     relation_type=str(row["关系类型"]) if pd.notna(row.get("关系类型")) else "marriage",
                     source_info=str(row["配偶来源信息"]) if pd.notna(row.get("配偶来源信息")) else None,
                     sort_order=int(row["排序（第几任）"]) if pd.notna(row.get("排序（第几任）")) else 1,
@@ -221,28 +333,36 @@ async def import_excel_data(tenant: Tenant):
 
         father_count = 0
         mother_count = 0
-        for _, row in df_persons.iterrows():
+        for _, row in all_persons_df.iterrows():
             name = row.get("姓名")
             if not name or pd.isna(name):
                 continue
 
-            person = name_to_person.get(str(name).strip())
-            if not person:
+            person_id = name_to_id.get(str(name).strip())
+            if not person_id:
                 continue
 
             father_name = row.get("父亲姓名")
             if father_name and pd.notna(father_name):
-                father = name_to_person.get(str(father_name).strip())
-                if father:
-                    person.father_id = father.id
-                    father_count += 1
+                father_id = name_to_id.get(str(father_name).strip())
+                if father_id:
+                    stmt = select(Person).where(Person.id == person_id)
+                    result = await session.execute(stmt)
+                    person = result.scalar_one_or_none()
+                    if person:
+                        person.father_id = father_id
+                        father_count += 1
 
             mother_name = row.get("母亲姓名")
             if mother_name and pd.notna(mother_name):
-                mother = name_to_person.get(str(mother_name).strip())
-                if mother:
-                    person.mother_id = mother.id
-                    mother_count += 1
+                mother_id = name_to_id.get(str(mother_name).strip())
+                if mother_id:
+                    stmt = select(Person).where(Person.id == person_id)
+                    result = await session.execute(stmt)
+                    person = result.scalar_one_or_none()
+                    if person:
+                        person.mother_id = mother_id
+                        mother_count += 1
 
         await session.commit()
         print(f"[OK] Set {father_count} father relations, {mother_count} mother relations")

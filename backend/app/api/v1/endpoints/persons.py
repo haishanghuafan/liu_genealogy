@@ -656,6 +656,142 @@ async def remove_spouse(
     }
 
 
+# ============ 5-Generation Tree ============
+
+@router.get("/{person_id}/tree", response_model=dict)
+async def get_person_tree(
+    person_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Get 5-generation tree (2 ancestors up, 2 descendants down) centered on person"""
+    require_tenant(request)
+
+    try:
+        uuid = UUID(person_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid person ID format")
+
+    # Get center person
+    stmt = select(Person).where(Person.id == uuid)
+    result = await db.execute(stmt)
+    center_person = result.scalar_one_or_none()
+
+    if not center_person:
+        raise HTTPException(404, "Person not found")
+
+    # Build tree
+    tree_data = await build_five_gen_tree(db, center_person)
+
+    return {
+        "success": True,
+        "data": tree_data,
+    }
+
+
+async def build_five_gen_tree(db: AsyncSession, center_person: Person) -> dict:
+    """Build 5-generation tree: 2 ancestors up, center, 2 descendants down"""
+
+    async def get_person_with_spouse(person_id: UUID) -> dict:
+        """Get person info with spouse"""
+        stmt = select(Person).where(Person.id == person_id)
+        result = await db.execute(stmt)
+        person = result.scalar_one_or_none()
+        if not person:
+            return None
+
+        # Get spouse (first one if multiple)
+        spouse_stmt = select(SpouseRelation).where(
+            (SpouseRelation.husband_id == person_id) | (SpouseRelation.wife_id == person_id)
+        ).limit(1)
+        spouse_result = await db.execute(spouse_stmt)
+        spouse_rel = spouse_result.scalar_one_or_none()
+
+        spouse_info = None
+        if spouse_rel:
+            spouse_id = spouse_rel.wife_id if person.gender == "M" else spouse_rel.husband_id
+            spouse_stmt2 = select(Person).where(Person.id == spouse_id)
+            spouse_result2 = await db.execute(spouse_stmt2)
+            spouse = spouse_result2.scalar_one_or_none()
+            if spouse:
+                spouse_info = {
+                    "id": str(spouse.id),
+                    "name": spouse.name,
+                    "gender": spouse.gender,
+                }
+
+        return {
+            "id": str(person.id),
+            "name": person.name,
+            "gender": person.gender,
+            "birth_year": person.birth_year,
+            "death_year": person.death_year,
+            "generation_id": person.generation_id,
+            "spouse": spouse_info,
+        }
+
+    async def get_ancestors(person: Person, levels: int) -> list:
+        """Get ancestors up N levels"""
+        ancestors = []
+        current = person
+
+        for _ in range(levels):
+            if not current.father_id:
+                break
+
+            # Get father
+            father_info = await get_person_with_spouse(current.father_id)
+            if father_info:
+                ancestors.append(father_info)
+                # Move up to father
+                stmt = select(Person).where(Person.id == current.father_id)
+                result = await db.execute(stmt)
+                current = result.scalar_one_or_none()
+                if not current:
+                    break
+            else:
+                break
+
+        return ancestors
+
+    async def get_descendants(person_id: UUID, levels: int) -> list:
+        """Get descendants down N levels recursively"""
+        if levels <= 0:
+            return []
+
+        # Get children
+        stmt = select(Person).where(Person.father_id == person_id).order_by(Person.sort_order, Person.birth_year)
+        result = await db.execute(stmt)
+        children = result.scalars().all()
+
+        descendants = []
+        for child in children:
+            child_info = await get_person_with_spouse(child.id)
+            if child_info:
+                # Recursively get grandchildren
+                child_info["children"] = await get_descendants(child.id, levels - 1)
+                descendants.append(child_info)
+
+        return descendants
+
+    # Build tree structure
+    center_info = await get_person_with_spouse(center_person.id)
+
+    # Get 2 levels of ancestors (reverse order: oldest first)
+    ancestors = await get_ancestors(center_person, 2)
+    ancestors.reverse()
+
+    # Get 2 levels of descendants
+    descendants = await get_descendants(center_person.id, 2)
+
+    return {
+        "center": center_info,
+        "ancestors": ancestors,  # [grandfather, father]
+        "descendants": descendants,  # [children with grandchildren]
+        "total_generations": len(ancestors) + 1 + (1 if descendants else 0),
+    }
+
+
 # ============ Helper Functions ============
 
 async def person_to_response(

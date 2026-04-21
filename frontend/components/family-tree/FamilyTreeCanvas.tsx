@@ -26,6 +26,8 @@ interface FamilyTreeProps {
 
 export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: FamilyTreeProps) {
   const [treeData, setTreeData] = useState<PersonNode | null>(null)
+  const [totalPersons, setTotalPersons] = useState(0)
+  const [totalTrees, setTotalTrees] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -47,7 +49,27 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
       const data = await response.json()
       
       if (data.success) {
-        setTreeData(data.data)
+        if (data.data.trees) {
+          setTotalPersons(data.data.total_persons || 0)
+          setTotalTrees(data.data.total_trees || 0)
+          
+          if (data.data.trees.length === 0) {
+            setTreeData(null)
+          } else if (data.data.trees.length === 1) {
+            setTreeData(data.data.trees[0])
+          } else {
+            const virtualRoot: PersonNode = {
+              id: "virtual-root",
+              name: "刘氏族谱",
+              generation: 0,
+              gender: "M",
+              children: data.data.trees,
+            }
+            setTreeData(virtualRoot)
+          }
+        } else {
+          setTreeData(data.data)
+        }
       } else {
         setError(data.error?.message || "加载失败")
       }
@@ -119,6 +141,16 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
         </Button>
       </div>
 
+      {/* Stats */}
+      {totalPersons > 0 && (
+        <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-gray-800/90 rounded-lg p-3 shadow-lg">
+          <div className="text-sm font-medium">族谱统计</div>
+          <div className="text-xs text-gray-500 mt-1">
+            共 {totalPersons} 位成员 · {totalTrees} 个分支
+          </div>
+        </div>
+      )}
+
       {/* Legend */}
       <div className="absolute bottom-4 left-4 z-10 bg-white/90 dark:bg-gray-800/90 rounded-lg p-3 shadow-lg">
         <div className="text-sm font-medium mb-2">图例</div>
@@ -134,10 +166,6 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
           <div className="flex items-center gap-1">
             <div className="w-4 h-0.5 bg-gray-400" />
             <span>父子</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-0.5 bg-red-400 border-dashed border-t-2 border-gray-400" />
-            <span>配偶</span>
           </div>
         </div>
       </div>
@@ -158,8 +186,9 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
           />
         )}
         onNodeClick={(node) => {
-          if (onNodeClick) {
-            onNodeClick((node.data as PersonNode).id)
+          const nodeData = node.data as PersonNode
+          if (nodeData.id !== "virtual-root" && nodeData.id !== "isolated-persons" && onNodeClick) {
+            onNodeClick(nodeData.id)
           }
         }}
         collapsible
@@ -175,7 +204,38 @@ interface PersonNodeCardProps {
 }
 
 function PersonNodeCard({ nodeData, onNodeClick }: PersonNodeCardProps) {
+  const isVirtualRoot = nodeData.id === "virtual-root"
+  const isIsolatedGroup = nodeData.id === "isolated-persons"
   const isMale = nodeData.gender !== "F"
+  
+  if (isVirtualRoot) {
+    return (
+      <foreignObject width={200} height={60} x={-100} y={-30}>
+        <div
+          className="w-full h-full rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950 shadow-lg p-2 flex items-center justify-center cursor-default"
+        >
+          <div className="font-serif font-bold text-amber-800 dark:text-amber-200 text-base">
+            {nodeData.name}
+          </div>
+        </div>
+      </foreignObject>
+    )
+  }
+
+  if (isIsolatedGroup) {
+    return (
+      <foreignObject width={200} height={60} x={-100} y={-30}>
+        <div
+          className="w-full h-full rounded-lg border-2 border-gray-400 bg-gray-50 dark:bg-gray-800 shadow-lg p-2 flex items-center justify-center cursor-default"
+        >
+          <div className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+            {nodeData.name}
+          </div>
+        </div>
+      </foreignObject>
+    )
+  }
+
   const borderColor = isMale ? "border-blue-400" : "border-pink-400"
   const bgColor = isMale ? "bg-blue-50" : "bg-pink-50"
   const darkBgColor = isMale ? "dark:bg-blue-950" : "dark:bg-pink-950"
@@ -191,7 +251,6 @@ function PersonNodeCard({ nodeData, onNodeClick }: PersonNodeCardProps) {
         onClick={() => onNodeClick?.(nodeData.id)}
       >
         <div className="flex items-center gap-2">
-          {/* Avatar */}
           <div className="flex-shrink-0">
             {nodeData.avatar ? (
               <img
@@ -206,7 +265,6 @@ function PersonNodeCard({ nodeData, onNodeClick }: PersonNodeCardProps) {
             )}
           </div>
 
-          {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="font-medium text-sm truncate">{nodeData.name}</div>
             {nodeData.generation && (

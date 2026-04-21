@@ -33,6 +33,12 @@ class TreeNode(BaseModel):
         from_attributes = True
 
 
+class ForestResponse(BaseModel):
+    trees: list[TreeNode]
+    total_persons: int
+    total_trees: int
+
+
 class TreeStats(BaseModel):
     total_persons: int
     generations: list[dict]
@@ -87,40 +93,67 @@ async def build_tree_from_root(
     return await build_node_tree(db, root, max_depth)
 
 
-async def build_full_tree(db: AsyncSession, max_depth: int) -> Optional[TreeNode]:
-    """Build full tree starting from earliest ancestor"""
+async def build_full_tree(db: AsyncSession, max_depth: int) -> dict:
+    """Build full tree as a forest (multiple root nodes)"""
 
-    # Find all persons without father (roots)
+    from sqlalchemy import func
+
+    stmt_count = select(func.count(Person.id))
+    result = await db.execute(stmt_count)
+    total_persons = result.scalar()
+
     stmt = (
         select(Person)
         .where(Person.father_id == None)
-        .order_by(Person.generation_id, Person.id)
+        .order_by(Person.generation_id, Person.sort_order, Person.id)
     )
     result = await db.execute(stmt)
     all_roots = result.scalars().all()
 
     if not all_roots:
-        stmt = select(Person).order_by(Person.generation_id).limit(1)
-        result = await db.execute(stmt)
-        root = result.scalar_one_or_none()
-        if not root:
-            return None
-        return await build_node_tree(db, root, max_depth)
+        return {"trees": [], "total_persons": total_persons, "total_trees": 0}
 
-    # Find a root that has children (most likely the main lineage root)
-    root = None
-    for candidate in all_roots:
-        stmt = select(Person).where(Person.father_id == candidate.id).limit(1)
-        result = await db.execute(stmt)
-        if result.scalar_one_or_none():
-            root = candidate
-            break
+    trees = []
+    isolated_nodes = []
 
-    # Fallback to first root if none has children
-    if not root:
-        root = all_roots[0]
+    for root in all_roots:
+        child_stmt = select(func.count(Person.id)).where(Person.father_id == root.id)
+        child_result = await db.execute(child_stmt)
+        has_children = child_result.scalar() > 0
 
-    return await build_node_tree(db, root, max_depth)
+        if has_children:
+            tree = await build_node_tree(db, root, max_depth)
+            trees.append(tree)
+        else:
+            isolated_nodes.append(root)
+
+    if isolated_nodes:
+        isolated_children = []
+        for person in isolated_nodes:
+            isolated_children.append(TreeNode(
+                id=str(person.id),
+                name=person.name,
+                generation=person.generation_id,
+                gender=person.gender,
+                birthYear=person.birth_year,
+                deathYear=person.death_year,
+                avatar=person.avatar,
+                courtesyName=person.courtesy_name,
+                children=[],
+            ))
+        trees.append(TreeNode(
+            id="isolated-persons",
+            name=f"其他成员 ({len(isolated_nodes)}人)",
+            generation=0,
+            gender="M",
+            children=isolated_children,
+        ))
+
+    return {
+        "trees": trees,
+        "total_persons": total_persons,
+        "total_trees": len(trees),
+    }
 
 
 async def build_node_tree(
