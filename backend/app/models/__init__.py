@@ -7,6 +7,7 @@ from app.models.tenant import (
     ChangeLog,
     Generation,
     Person,
+    PersonAudio,
     PersonImage,
     PersonVideo,
     SpouseRelation,
@@ -25,5 +26,6 @@ __all__ = [
     "SpouseRelation",
     "PersonImage",
     "PersonVideo",
+    "PersonAudio",
     "ChangeLog",
 ]

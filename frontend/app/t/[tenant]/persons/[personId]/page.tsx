@@ -16,6 +16,10 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  Image as ImageIcon,
+  Video,
+  Music,
+  Play,
 } from "lucide-react"
 import { Tree } from "react-d3-tree"
 
@@ -45,6 +49,17 @@ interface Person {
   branch_name?: string
   father_name?: string
   mother_name?: string
+  avatar?: string
+}
+
+interface MediaFile {
+  id: string
+  type: "image" | "video" | "audio"
+  url: string
+  title?: string
+  description?: string
+  duration?: number
+  created_at: string
 }
 
 interface TreePerson {
@@ -77,12 +92,14 @@ export default function PersonDetailPage() {
 
   const [person, setPerson] = useState<Person | null>(null)
   const [treeData, setTreeData] = useState<FiveGenTree | null>(null)
+  const [media, setMedia] = useState<MediaFile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPerson()
     fetchTree()
+    fetchMedia()
   }, [tenantSlug, personId])
 
   const fetchPerson = async () => {
@@ -123,6 +140,28 @@ export default function PersonDetailPage() {
     }
   }
 
+  const fetchMedia = async () => {
+    try {
+      const token = localStorage.getItem("access_token") || ""
+      const response = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/persons/${personId}/media`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success && data.data) {
+        setMedia(data.data)
+      }
+    } catch (err) {
+      console.error("Failed to fetch media:", err)
+    }
+  }
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return ""
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -159,7 +198,7 @@ export default function PersonDetailPage() {
               <span className="text-gray-500 text-sm">字{person.courtesy_name}</span>
             )}
           </div>
-          <Link href={`/t/${tenantSlug}/persons`}>
+          <Link href={`/t/${tenantSlug}/persons/${personId}/edit`}>
             <Button size="sm">
               <Edit className="h-4 w-4 mr-2" />
               编辑
@@ -178,9 +217,17 @@ export default function PersonDetailPage() {
               <CardContent className="pt-6">
                 <div className="flex items-start gap-6">
                   {/* Avatar */}
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-white ${person.gender === "F" ? "bg-pink-500" : "bg-blue-500"}`}>
-                    {person.name.charAt(0)}
-                  </div>
+                  {person.avatar ? (
+                    <img
+                      src={person.avatar}
+                      alt={person.name}
+                      className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                  ) : (
+                    <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-white ${person.gender === "F" ? "bg-pink-500" : "bg-blue-500"}`}>
+                      {person.name.charAt(0)}
+                    </div>
+                  )}
 
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -222,6 +269,92 @@ export default function PersonDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Media Gallery */}
+            {media.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    媒体资料
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Images */}
+                  {media.filter(m => m.type === "image").length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 mb-3">图片</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {media.filter(m => m.type === "image").map((img) => (
+                          <div key={img.id} className="relative group">
+                            <img
+                              src={img.url}
+                              alt={img.title || "图片"}
+                              className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(img.url, "_blank")}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Videos */}
+                  {media.filter(m => m.type === "video").length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 mb-3">视频</h4>
+                      <div className="space-y-3">
+                        {media.filter(m => m.type === "video").map((vid) => (
+                          <div key={vid.id} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div className="w-16 h-12 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center">
+                              <Play className="h-6 w-6 text-gray-500" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium">{vid.title || "未命名视频"}</p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(vid.created_at).toLocaleDateString("zh-CN")}
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(vid.url, "_blank")}
+                            >
+                              播放
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Audios */}
+                  {media.filter(m => m.type === "audio").length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 mb-3">音频</h4>
+                      <div className="space-y-3">
+                        {media.filter(m => m.type === "audio").map((audio) => (
+                          <div key={audio.id} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Music className="h-5 w-5 text-gray-500" />
+                              <span className="font-medium">{audio.title || "未命名音频"}</span>
+                              {audio.duration && (
+                                <span className="text-sm text-gray-500">({formatDuration(audio.duration)})</span>
+                              )}
+                            </div>
+                            <audio
+                              controls
+                              src={audio.url}
+                              className="w-full"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* 5-Generation Tree */}
             {treeData && (

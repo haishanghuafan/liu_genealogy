@@ -39,14 +39,47 @@ interface FamilyTreePageProps {
   tenantName: string
 }
 
+interface Record {
+  id: string
+  title: string
+  content: string
+  source_type: string
+  source_name: string | null
+  page_number: string | null
+  reliability: string
+  is_verified: boolean
+  created_at: string
+}
+
 export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [viewMode, setViewMode] = useState<"tree" | "list">("tree")
+  const [viewMode, setViewMode] = useState<"tree" | "list" | "records">("tree")
+  const [records, setRecords] = useState<Record[]>([])
+  const [recordsLoading, setRecordsLoading] = useState(false)
 
   useEffect(() => {
     trackPageVisit()
   }, [tenantSlug])
+
+  useEffect(() => {
+    if (viewMode === "records") {
+      fetchRecords()
+    }
+  }, [viewMode, tenantSlug])
+
+  const fetchRecords = async () => {
+    setRecordsLoading(true)
+    try {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/records`)
+      const data = await res.json()
+      if (data.success) setRecords(data.data)
+    } catch (err) {
+      console.error("Failed to fetch records:", err)
+    } finally {
+      setRecordsLoading(false)
+    }
+  }
 
   const trackPageVisit = async () => {
     try {
@@ -130,8 +163,8 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
             <div className="flex bg-paper-dark rounded-lg p-1">
               <button
                 className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  viewMode === "tree" 
-                    ? "bg-white text-ink shadow-sm" 
+                  viewMode === "tree"
+                    ? "bg-white text-ink shadow-sm"
                     : "text-ink-muted hover:text-ink"
                 }`}
                 onClick={() => setViewMode("tree")}
@@ -140,13 +173,23 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
               </button>
               <button
                 className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  viewMode === "list" 
-                    ? "bg-white text-ink shadow-sm" 
+                  viewMode === "list"
+                    ? "bg-white text-ink shadow-sm"
                     : "text-ink-muted hover:text-ink"
                 }`}
                 onClick={() => setViewMode("list")}
               >
                 列表
+              </button>
+              <button
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  viewMode === "records"
+                    ? "bg-white text-ink shadow-sm"
+                    : "text-ink-muted hover:text-ink"
+                }`}
+                onClick={() => setViewMode("records")}
+              >
+                原始资料
               </button>
             </div>
           </div>
@@ -162,13 +205,19 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
               tenantSlug={tenantSlug}
               onNodeClick={handleNodeClick}
             />
-          ) : (
+          ) : viewMode === "list" ? (
             <FamilyListView tenantSlug={tenantSlug} onPersonClick={handleNodeClick} />
+          ) : (
+            <RecordsView
+              records={records}
+              loading={recordsLoading}
+              tenantSlug={tenantSlug}
+            />
           )}
         </div>
 
         {/* Sidebar - Person Details */}
-        {selectedPerson && (
+        {selectedPerson && viewMode !== "records" && (
           <aside className="w-96 border-l border-ink/10 bg-paper overflow-y-auto">
             <PersonDetailPanel
               person={selectedPerson}
@@ -476,7 +525,7 @@ function PersonDetailPanel({ person, tenantSlug, onClose }: PersonDetailPanelPro
 
 function RelationItem({ icon, label, name, href }: { icon: string; label: string; name: string; href: string }) {
   return (
-    <Link 
+    <Link
       href={href}
       className="flex items-center gap-3 p-2 rounded-lg hover:bg-paper-warm transition-colors group"
     >
@@ -489,5 +538,148 @@ function RelationItem({ icon, label, name, href }: { icon: string; label: string
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
       </svg>
     </Link>
+  )
+}
+
+// Records View Component
+function RecordsView({
+  records,
+  loading,
+  tenantSlug,
+}: {
+  records: Record[]
+  loading: boolean
+  tenantSlug: string
+}) {
+  const [search, setSearch] = useState("")
+  const [sourceFilter, setSourceFilter] = useState("")
+
+  const sourceTypeNames: Record<string, string> = {
+    paper: "纸质资料",
+    digital: "数字资料",
+    oral: "口述记录",
+  }
+
+  const reliabilityNames: Record<string, string> = {
+    high: "高",
+    medium: "中",
+    low: "低",
+  }
+
+  const filteredRecords = records.filter((r) =>
+    (search === "" || r.title.includes(search) || r.content.includes(search)) &&
+    (sourceFilter === "" || r.source_type === sourceFilter)
+  )
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center">
+        <div className="text-4xl mb-4 animate-bounce">⏳</div>
+        <p className="text-ink-muted">加载原始资料...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <h2 className="text-2xl font-serif font-semibold mb-2">📚 原始资料</h2>
+          <p className="text-ink-muted">族谱的原始来源记录，确保数据可追溯</p>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-4 mb-6">
+          <div className="relative flex-1 max-w-md">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-ink/10 bg-white focus:border-vermillion focus:ring-2 focus:ring-vermillion/20 outline-none transition-all"
+              placeholder="搜索资料标题或内容..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            className="px-4 py-2 rounded-lg border border-ink/10 bg-white focus:border-vermillion focus:ring-2 focus:ring-vermillion/20 outline-none"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+          >
+            <option value="">全部来源</option>
+            <option value="paper">纸质资料</option>
+            <option value="digital">数字资料</option>
+            <option value="oral">口述记录</option>
+          </select>
+        </div>
+
+        {/* Records List */}
+        {filteredRecords.length === 0 ? (
+          <div className="bg-white rounded-xl border border-ink/5 p-12 text-center">
+            <div className="text-6xl mb-4">📚</div>
+            <h3 className="text-lg font-semibold mb-2">暂无原始资料</h3>
+            <p className="text-ink-muted">该家族还没有添加原始资料记录</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredRecords.map((record) => (
+              <div
+                key={record.id}
+                className="bg-white rounded-xl border border-ink/5 p-6 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="text-lg font-semibold">{record.title}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 rounded-full bg-paper-dark text-xs">
+                      {sourceTypeNames[record.source_type] || record.source_type}
+                    </span>
+                    {record.is_verified && (
+                      <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        已核实
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-ink-muted text-sm mb-4 line-clamp-3">{record.content}</p>
+
+                <div className="flex items-center gap-4 text-xs text-ink-muted">
+                  {record.source_name && (
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.族谱树 754 9.246 19 7.5 19s-3.332-.477-4.5-1.253m0 13C13.168 18.477 14.754 18 16.5 18c1.746 0 3.332.477 4.5 1.253v-13C19.832 5.477 18.247 5 16.5 5c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      来源：{record.source_name}
+                    </span>
+                  )}
+                  {record.page_number && (
+                    <span>页码：{record.page_number}</span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    可信度：
+                    <span className={
+                      record.reliability === "high" ? "text-green-600" :
+                      record.reliability === "medium" ? "text-yellow-600" : "text-red-600"
+                    }>
+                      {reliabilityNames[record.reliability] || record.reliability}
+                    </span>
+                  </span>
+                  <span>{new Date(record.created_at).toLocaleDateString("zh-CN")}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

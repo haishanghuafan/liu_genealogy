@@ -4,11 +4,11 @@ API v1 router configuration
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    auth, 
-    tenants, 
-    family_tree, 
-    persons, 
-    subscriptions, 
+    auth,
+    tenants,
+    family_tree,
+    persons,
+    subscriptions,
     members,
     settings,
     files,
@@ -20,6 +20,7 @@ from app.api.v1.endpoints import (
     generations,
     spouse_relations,
     import_data,
+    person_media,
 )
 
 api_router = APIRouter()
@@ -34,6 +35,7 @@ api_router.include_router(subscriptions.router)
 # Tenant-specific routers (under /t/{tenant_slug})
 tenant_router = APIRouter(prefix="/t/{tenant_slug}")
 tenant_router.include_router(persons.router)
+tenant_router.include_router(person_media.router)
 tenant_router.include_router(family_tree.router)
 tenant_router.include_router(members.router)
 tenant_router.include_router(subscriptions.tenant_subscription_router)

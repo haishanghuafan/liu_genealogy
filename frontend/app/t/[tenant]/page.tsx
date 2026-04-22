@@ -152,15 +152,6 @@ export default function TenantHomePage() {
           </Link>
           
           <Link
-            href={`/t/${tenantSlug}/files`}
-            className="bg-white rounded-xl p-8 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1 group"
-          >
-            <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">📁</div>
-            <h3 className="text-lg font-semibold mb-2">文件管理</h3>
-            <p className="text-sm text-ink-muted">上传照片和文档</p>
-          </Link>
-          
-          <Link
             href={`/t/${tenantSlug}/analytics`}
             className="bg-white rounded-xl p-8 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1 group"
           >

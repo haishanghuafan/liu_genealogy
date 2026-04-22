@@ -238,6 +238,30 @@ class PersonVideo(Base):
         return f"<PersonVideo {self.person_id}>"
 
 
+class PersonAudio(Base):
+    """Person audio model - for oral history, interviews, etc."""
+    
+    __tablename__ = "person_audios"
+    
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    person_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Duration in seconds
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<PersonAudio {self.person_id}>"
+
+
 class ChangeLog(Base):
     """Change log model for audit trail"""
     
