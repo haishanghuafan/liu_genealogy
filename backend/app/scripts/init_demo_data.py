@@ -36,40 +36,46 @@ def hash_password(password: str) -> str:
 
 # ============ System-level initialization ============
 
-async def init_permissions(db: AsyncSession):
-    """Initialize permissions and built-in roles"""
-    print("  Initializing permissions...")
+async def init_system_permissions(db: AsyncSession):
+    """Initialize system-level permissions and roles"""
+    print("  Initializing system permissions...")
     
-    # Seed permissions
-    existing_codes = set()
-    stmt = select(Permission.code)
+    # Seed system-level permissions (tenant_id=NULL)
+    stmt = select(Permission).where(Permission.tenant_id.is_(None))
     result = await db.execute(stmt)
-    existing_codes = set(result.scalars().all())
+    existing_perms = {p.code: p for p in result.scalars().all()}
     
     new_perms = 0
     for perm_data in SYSTEM_PERMISSIONS:
-        if perm_data["code"] not in existing_codes:
+        if perm_data.get("resource_type") == "tenant":
+            continue  # Skip tenant-level permissions here
+            
+        if perm_data["code"] not in existing_perms:
             perm = Permission(
                 code=perm_data["code"],
                 name=perm_data["name"],
                 group=perm_data["group"],
                 description=perm_data.get("description"),
-                resource_type=perm_data.get("resource_type", "system"),
+                resource_type="system",
+                tenant_id=None,
             )
             db.add(perm)
             new_perms += 1
     
     await db.flush()
     
-    # Get all permissions for lookup
-    perm_stmt = select(Permission)
+    # Get all system permissions for lookup
+    perm_stmt = select(Permission).where(Permission.tenant_id.is_(None))
     perm_result = await db.execute(perm_stmt)
     all_perms = {p.code: p for p in perm_result.scalars().all()}
     
     # Seed built-in system roles
     new_roles = 0
     for role_data in BUILTIN_ROLES:
-        stmt = select(Role).where(Role.code == role_data["code"])
+        stmt = select(Role).where(
+            Role.code == role_data["code"],
+            Role.tenant_id.is_(None)
+        )
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
         
@@ -79,23 +85,69 @@ async def init_permissions(db: AsyncSession):
         role = Role(
             name=role_data["name"],
             code=role_data["code"],
-            scope=role_data["scope"],
+            scope="system",
             description=role_data["description"],
             is_builtin=True,
+            tenant_id=None,
         )
         db.add(role)
         await db.flush()
         
         for perm_code in role_data.get("permissions", []):
             if perm_code in all_perms:
-                rp = RolePermission(role_id=role.id, permission_id=all_perms[perm_code].id)
+                rp = RolePermission(
+                    role_id=role.id, 
+                    permission_id=all_perms[perm_code].id,
+                    tenant_id=None
+                )
                 db.add(rp)
         
         new_roles += 1
     
-    # Seed built-in tenant roles
+    await db.commit()
+    print(f"    Created {new_perms} system permissions, {new_roles} system roles")
+
+
+async def init_tenant_permissions(db: AsyncSession, tenant_id: UUID, tenant_name: str):
+    """Initialize tenant-level permissions and roles for a specific tenant"""
+    print(f"  Initializing tenant permissions for {tenant_name}...")
+    
+    # Seed tenant-level permissions for this tenant
+    stmt = select(Permission).where(Permission.tenant_id == tenant_id)
+    result = await db.execute(stmt)
+    existing_perms = {p.code: p for p in result.scalars().all()}
+    
+    new_perms = 0
+    for perm_data in SYSTEM_PERMISSIONS:
+        if perm_data.get("resource_type") != "tenant":
+            continue  # Only tenant-level permissions
+            
+        if perm_data["code"] not in existing_perms:
+            perm = Permission(
+                code=perm_data["code"],
+                name=perm_data["name"],
+                group=perm_data["group"],
+                description=perm_data.get("description"),
+                resource_type="tenant",
+                tenant_id=tenant_id,
+            )
+            db.add(perm)
+            new_perms += 1
+    
+    await db.flush()
+    
+    # Get all tenant permissions for lookup
+    perm_stmt = select(Permission).where(Permission.tenant_id == tenant_id)
+    perm_result = await db.execute(perm_stmt)
+    all_perms = {p.code: p for p in perm_result.scalars().all()}
+    
+    # Seed built-in tenant roles for this tenant
+    new_roles = 0
     for role_data in BUILTIN_TENANT_ROLES:
-        stmt = select(Role).where(Role.code == role_data["code"])
+        stmt = select(Role).where(
+            Role.code == role_data["code"],
+            Role.tenant_id == tenant_id
+        )
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
         
@@ -108,19 +160,24 @@ async def init_permissions(db: AsyncSession):
             scope="tenant",
             description=role_data["description"],
             is_builtin=True,
+            tenant_id=tenant_id,
         )
         db.add(role)
         await db.flush()
         
         for perm_code in role_data.get("permissions", []):
             if perm_code in all_perms:
-                rp = RolePermission(role_id=role.id, permission_id=all_perms[perm_code].id)
+                rp = RolePermission(
+                    role_id=role.id, 
+                    permission_id=all_perms[perm_code].id,
+                    tenant_id=tenant_id
+                )
                 db.add(rp)
         
         new_roles += 1
     
     await db.commit()
-    print(f"    Created {new_perms} permissions, {new_roles} roles")
+    print(f"    Created {new_perms} tenant permissions, {new_roles} tenant roles")
 
 
 async def init_users(db: AsyncSession) -> dict:
@@ -897,9 +954,9 @@ async def main():
     print("    数据库表创建完成")
     
     async with system_db() as db:
-        # Step 1: Initialize permissions and roles
-        print("\n[1/7] 初始化权限和角色...")
-        await init_permissions(db)
+        # Step 1: Initialize system permissions and roles
+        print("\n[1/7] 初始化系统权限和角色...")
+        await init_system_permissions(db)
         
         # Step 2: Create users
         print("\n[2/7] 创建用户...")
@@ -909,16 +966,22 @@ async def main():
         print("\n[3/7] 创建租户...")
         tenant_ids = await init_tenants(db)
         
-        # Step 4: Create tenant-user relationships
-        print("\n[4/7] 创建租户用户关系...")
+        # Step 4: Initialize tenant permissions and roles for each tenant
+        print("\n[4/7] 初始化租户级权限和角色...")
+        for slug, tenant_id in tenant_ids.items():
+            tenant_name = "刘氏" if slug == "liu" else "张氏"
+            await init_tenant_permissions(db, tenant_id, tenant_name)
+        
+        # Step 5: Create tenant-user relationships
+        print("\n[5/7] 创建租户用户关系...")
         await init_tenant_users(db, user_ids, tenant_ids)
         
-        # Step 5: Create subscriptions
-        print("\n[5/7] 创建订阅...")
+        # Step 6: Create subscriptions
+        print("\n[6/7] 创建订阅...")
         await init_subscriptions(db, tenant_ids)
         
-        # Step 6: Initialize tenant-level data
-        print("\n[6/7] 初始化租户数据...")
+        # Step 7: Initialize tenant-level genealogy data
+        print("\n[7/7] 初始化族谱数据...")
         
         # Tenant 1 data
         liu_tenant_id = tenant_ids["liu"]
@@ -928,7 +991,7 @@ async def main():
         zhang_tenant_id = tenant_ids["zhang"]
         await init_tenant2_data(db, zhang_tenant_id)
     
-    print("\n[7/7] 初始化完成！")
+    print("\n[8/8] 初始化完成！")
     print("\n登录账号：")
     print("  超级管理员: admin@liushipu.com / admin123")
     print("  运营人员:   operator@liushipu.com / operator123")

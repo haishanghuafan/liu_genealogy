@@ -75,11 +75,24 @@ class RoleListResponse(BaseModel):
 
 @router.get("/list", response_model=dict)
 async def list_all_permissions(
+    scope: Optional[str] = None,
+    tenant_id: Optional[str] = None,
     _admin=Depends(get_superuser),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all system permissions"""
+    """List permissions with tenant isolation support"""
     stmt = select(Permission).order_by(Permission.group, Permission.code)
+    
+    if scope == "system":
+        # System-level permissions (no tenant)
+        stmt = stmt.where(Permission.tenant_id.is_(None))
+    elif scope == "tenant":
+        # Tenant-level permissions
+        if tenant_id:
+            stmt = stmt.where(Permission.tenant_id == UUID(tenant_id))
+        else:
+            stmt = stmt.where(Permission.tenant_id.isnot(None))
+    
     result = await db.execute(stmt)
     permissions = result.scalars().all()
     
@@ -93,6 +106,7 @@ async def list_all_permissions(
             "name": p.name,
             "description": p.description,
             "resource_type": p.resource_type,
+            "tenant_id": str(p.tenant_id) if p.tenant_id else None,
         })
     
     return {
@@ -100,6 +114,7 @@ async def list_all_permissions(
         "data": {
             "groups": groups,
             "total": len(permissions),
+            "scope": scope or "all",
         },
     }
 
@@ -186,32 +201,40 @@ async def create_role(
     _admin=Depends(get_superuser),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new role"""
-    # Check if code already exists
-    stmt = select(Role).where(Role.code == data.code)
+    """Create a new role with tenant isolation"""
+    # Check if code already exists for this tenant
+    tenant_uuid = UUID(data.tenant_id) if data.tenant_id else None
+    stmt = select(Role).where(
+        Role.code == data.code,
+        Role.tenant_id == tenant_uuid
+    )
     result = await db.execute(stmt)
     if result.scalar_one_or_none():
-        raise HTTPException(400, "Role code already exists")
+        raise HTTPException(400, "Role code already exists for this tenant")
     
     role = Role(
         name=data.name,
         code=data.code,
         scope=data.scope,
-        tenant_id=UUID(data.tenant_id) if data.tenant_id else None,
+        tenant_id=tenant_uuid,
         description=data.description,
         is_builtin=False,
     )
     db.add(role)
     await db.flush()
     
-    # Add permissions
+    # Add permissions with tenant isolation
     if data.permission_codes:
         perm_stmt = select(Permission).where(Permission.code.in_(data.permission_codes))
         perm_result = await db.execute(perm_stmt)
         permissions = perm_result.scalars().all()
         
         for perm in permissions:
-            rp = RolePermission(role_id=role.id, permission_id=perm.id)
+            rp = RolePermission(
+                role_id=role.id, 
+                permission_id=perm.id,
+                tenant_id=tenant_uuid
+            )
             db.add(rp)
     
     await db.commit()
@@ -224,6 +247,7 @@ async def create_role(
             "id": str(role.id),
             "code": role.code,
             "name": role.name,
+            "tenant_id": data.tenant_id,
         },
     }
 
@@ -235,7 +259,7 @@ async def update_role(
     _admin=Depends(get_superuser),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update role"""
+    """Update role with tenant isolation"""
     stmt = select(Role).options(selectinload(Role.permissions).selectinload(RolePermission.permission)).where(Role.id == UUID(role_id))
     result = await db.execute(stmt)
     role = result.scalar_one_or_none()
@@ -254,18 +278,22 @@ async def update_role(
         role.description = updates["description"]
     
     if "permission_codes" in updates:
-        # Remove existing permissions
+        # Remove existing permissions for this role
         for rp in role.permissions:
             await db.delete(rp)
         
-        # Add new permissions
+        # Add new permissions with tenant isolation
         if updates["permission_codes"]:
             perm_stmt = select(Permission).where(Permission.code.in_(updates["permission_codes"]))
             perm_result = await db.execute(perm_stmt)
             permissions = perm_result.scalars().all()
             
             for perm in permissions:
-                rp = RolePermission(role_id=role.id, permission_id=perm.id)
+                rp = RolePermission(
+                    role_id=role.id, 
+                    permission_id=perm.id,
+                    tenant_id=role.tenant_id
+                )
                 db.add(rp)
     
     await db.commit()

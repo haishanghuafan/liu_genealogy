@@ -10,6 +10,7 @@ interface Permission {
   group: string
   description: string | null
   resource_type: string
+  tenant_id: string | null
 }
 
 interface PermissionGroup {
@@ -17,18 +18,20 @@ interface PermissionGroup {
 }
 
 export default function AdminPermissionsPage() {
+  const [activeTab, setActiveTab] = useState<"system" | "tenant">("system")
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [activeTab])
 
   const fetchData = async () => {
     const token = localStorage.getItem("access_token") || ""
     try {
-      const permsRes = await fetch("http://localhost:8012/api/v1/admin/permissions/list", {
+      const scope = activeTab
+      const permsRes = await fetch(`http://localhost:8012/api/v1/admin/permissions/list?scope=${scope}`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
 
@@ -82,6 +85,26 @@ export default function AdminPermissionsPage() {
             ⚠️ {error}
           </div>
         )}
+
+        {/* Tabs */}
+        <div className="flex gap-4 mb-8 border-b border-ink/10">
+          <button
+            onClick={() => setActiveTab("system")}
+            className={`pb-3 px-2 font-medium border-b-2 transition-colors ${
+              activeTab === "system" ? "border-vermillion text-vermillion" : "border-transparent text-ink-muted"
+            }`}
+          >
+            🏛️ 系统级权限
+          </button>
+          <button
+            onClick={() => setActiveTab("tenant")}
+            className={`pb-3 px-2 font-medium border-b-2 transition-colors ${
+              activeTab === "tenant" ? "border-vermillion text-vermillion" : "border-transparent text-ink-muted"
+            }`}
+          >
+            🏠 租户级权限
+          </button>
+        </div>
 
         <div className="space-y-6">
           {Object.entries(permissionGroups).map(([group, perms]) => (

@@ -93,11 +93,17 @@ export default function TenantHomePage() {
               <span>💎</span> 订阅
             </Link>
             <Link
-              href={`/t/${tenantSlug}/members`}
-              className="text-ink-muted hover:text-ink px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
-            >
-              <span>👥</span> 成员
-            </Link>
+            href={`/t/${tenantSlug}/members`}
+            className="text-ink-muted hover:text-ink px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
+          >
+            <span>👥</span> 成员
+          </Link>
+          <Link
+            href={`/t/${tenantSlug}/roles`}
+            className="text-ink-muted hover:text-ink px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
+          >
+            <span>🔐</span> 角色
+          </Link>
             <div className="w-px h-6 bg-ink/10 mx-1" />
             <UserMenu />
           </div>

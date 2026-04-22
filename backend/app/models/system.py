@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -251,7 +252,7 @@ class Subscription(Base):
 
 
 class Permission(Base):
-    """Permission definition model"""
+    """Permission definition model - supports both system-level and tenant-level permissions"""
 
     __tablename__ = "permissions"
 
@@ -260,11 +261,19 @@ class Permission(Base):
         primary_key=True,
         default=generate_uuid,
     )
-    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     group: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     resource_type: Mapped[str] = mapped_column(String(50), default="system")
+    
+    # Tenant isolation: NULL for system-level permissions, tenant_id for tenant-level permissions
+    tenant_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -274,12 +283,17 @@ class Permission(Base):
     # Relationships
     roles: Mapped[list["RolePermission"]] = relationship(back_populates="permission", cascade="all, delete-orphan")
     
+    # Unique constraint: code + tenant_id (allows same code in different tenants)
+    __table_args__ = (
+        UniqueConstraint("code", "tenant_id", name="uix_permission_code_tenant"),
+    )
+    
     def __repr__(self) -> str:
         return f"<Permission {self.code}>"
 
 
 class Role(Base):
-    """Role model - can be system-level or tenant-level"""
+    """Role model - can be system-level or tenant-level with tenant isolation"""
 
     __tablename__ = "roles"
 
@@ -289,12 +303,12 @@ class Role(Base):
         default=generate_uuid,
     )
     name: Mapped[str] = mapped_column(String(50), nullable=False)
-    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     
     # Scope: 'system' or 'tenant'
     scope: Mapped[str] = mapped_column(String(20), default="system", index=True)
     
-    # If scope is 'tenant', this is the tenant_id; NULL for system roles
+    # Tenant isolation: NULL for system roles, tenant_id for tenant-specific roles
     tenant_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
@@ -318,12 +332,17 @@ class Role(Base):
     # Relationships
     permissions: Mapped[list["RolePermission"]] = relationship(back_populates="role", cascade="all, delete-orphan")
     
+    # Unique constraint: code + tenant_id (allows same code in different tenants)
+    __table_args__ = (
+        UniqueConstraint("code", "tenant_id", name="uix_role_code_tenant"),
+    )
+    
     def __repr__(self) -> str:
         return f"<Role {self.code}>"
 
 
 class RolePermission(Base):
-    """Role-Permission relationship model"""
+    """Role-Permission relationship model with tenant isolation"""
 
     __tablename__ = "role_permissions"
 
@@ -345,11 +364,21 @@ class RolePermission(Base):
         index=True,
     )
     
+    # Tenant isolation for role-permission mapping
+    tenant_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    
     # Relationships
     role: Mapped["Role"] = relationship(back_populates="permissions")
     permission: Mapped["Permission"] = relationship(back_populates="roles")
     
+    # Unique constraint: prevent duplicate role-permission pairs per tenant
     __table_args__ = (
+        UniqueConstraint("role_id", "permission_id", "tenant_id", name="uix_role_permission_tenant"),
     )
     
     def __repr__(self) -> str:
