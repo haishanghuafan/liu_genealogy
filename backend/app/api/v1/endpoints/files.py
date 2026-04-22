@@ -2,7 +2,6 @@
 File upload endpoints - media management for tenant
 """
 import os
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -15,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_tenant_db
+from app.core.uuid7 import uuid7_str
 from app.middleware.tenant import require_tenant, get_tenant
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -78,7 +78,7 @@ def get_file_extension(filename: str) -> str:
 def generate_unique_filename(original_filename: str, tenant_id: str) -> str:
     """Generate unique filename"""
     ext = get_file_extension(original_filename)
-    unique_name = f"{tenant_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
+    unique_name = f"{tenant_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid7_str()[:8]}{ext}"
     return unique_name
 
 
@@ -174,11 +174,11 @@ async def upload_file(
     
     # Generate URL (in production, this would be a CDN URL)
     file_url = f"/api/v1/t/{tenant.slug}/files/{unique_filename}"
-    
+
     return {
         "success": True,
         "data": {
-            "id": str(uuid.uuid4()),
+            "id": uuid7_str(),
             "filename": file.filename,
             "url": file_url,
             "size": file_size,

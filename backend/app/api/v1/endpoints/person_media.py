@@ -2,7 +2,6 @@
 Person media API endpoints - images, videos, audio uploads
 """
 import os
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -15,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_tenant_db
+from app.core.uuid7 import uuid7_str
 from app.middleware.tenant import require_tenant, get_tenant
 from app.models.tenant import Person, PersonImage, PersonVideo, PersonAudio
 from app.services.quota_service import quota_service
@@ -83,7 +83,7 @@ def validate_file_type(content_type: str, allowed_types: set) -> bool:
 def generate_unique_filename(original_filename: str) -> str:
     """Generate unique filename"""
     ext = Path(original_filename).suffix.lower()
-    unique_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
+    unique_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid7_str()[:8]}{ext}"
     return unique_name
 
 

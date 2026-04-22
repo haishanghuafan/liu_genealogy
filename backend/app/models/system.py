@@ -2,7 +2,6 @@
 System-level models (public schema)
 """
 import json
-import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -19,6 +18,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.uuid7 import generate_uuid
 
 
 # For SQLite compatibility - use JSON as TEXT
@@ -50,13 +50,13 @@ class JSONType(TypeDecorator):
 
 class Tenant(Base):
     """Tenant (Family) model"""
-    
+
     __tablename__ = "tenants"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     slug: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
@@ -100,13 +100,13 @@ class Tenant(Base):
 
 class User(Base):
     """User model"""
-    
+
     __tablename__ = "users"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True)
@@ -150,39 +150,39 @@ class User(Base):
 
 class TenantUser(Base):
     """User-Tenant relationship model"""
-    
+
     __tablename__ = "tenant_users"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
+    tenant_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    
+
     # Role in tenant
     role: Mapped[str] = mapped_column(String(20), default="member")
-    
+
     # Related person in genealogy
-    person_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    
+    person_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
     # Timestamps
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
     )
-    invited_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    invited_by: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     
     # Relationships
     user: Mapped["User"] = relationship(back_populates="tenants")
@@ -210,15 +210,15 @@ class TenantUser(Base):
 
 class Subscription(Base):
     """Subscription record model"""
-    
+
     __tablename__ = "subscriptions"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
+    tenant_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,

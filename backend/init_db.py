@@ -3,12 +3,12 @@ Initialize Liu Family Genealogy Database
 """
 import asyncio
 import sys
-import uuid
 
 sys.path.insert(0, ".")
 
 from app.core.database import db_manager, Base
 from app.core.security import get_password_hash
+from app.core.uuid7 import generate_uuid
 from app.models import Tenant, User, TenantUser
 from app.models.tenant import Person, Generation, Branch, SpouseRelation
 
@@ -16,10 +16,18 @@ from app.models.tenant import Person, Generation, Branch, SpouseRelation
 async def init_database():
     db_manager.init_default_engine()
 
+    # Create public schema tables
     async with db_manager._default_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    print("[OK] Database tables created")
+    print("[OK] Public database tables created")
+
+    # Create tenant schema tables
+    tenant_engine = db_manager.get_engine("liushipu")
+    async with tenant_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    print("[OK] Tenant database tables created")
 
 
 async def create_tenant():
@@ -38,7 +46,7 @@ async def create_tenant():
             tenant = existing
         else:
             tenant = Tenant(
-                id=uuid.uuid4(),
+                id=generate_uuid(),
                 name="刘氏族谱",
                 slug=tenant_slug,
                 surname="刘",
@@ -51,41 +59,31 @@ async def create_tenant():
             session.add(tenant)
 
             admin_user = User(
-                id=uuid.uuid4(),
+                id=generate_uuid(),
                 email="admin@liushipu.com",
                 password_hash=get_password_hash("admin123"),
                 nickname="管理员",
                 system_role="admin",
             )
             session.add(admin_user)
-            await session.flush()
 
             tenant_user = TenantUser(
-                tenant_id=tenant.id,
-                user_id=admin_user.id,
-                role="owner",
+                tenant=tenant,
+                user=admin_user,
+                role="admin",
             )
             session.add(tenant_user)
 
             await session.commit()
-            print(f"[OK] Tenant '{tenant_slug}' created with admin user")
-            print(f"     Email: admin@liushipu.com")
-            print(f"     Password: admin123")
-
-        tenant_engine = db_manager.get_engine(tenant.schema_name)
-        async with tenant_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        print(f"[OK] Created tables for tenant schema '{tenant.schema_name}'")
+            print(f"[OK] Created tenant '{tenant_slug}' with admin user")
 
         return tenant
 
 
 def _get_base_name(name: str) -> str:
-    name = name.strip()
-    suffixes = ["公", "郎"]
-    for suffix in suffixes:
-        if name.endswith(suffix) and len(name) > 1:
-            return name[:-1]
+    """Get base name without suffix like '公' or '郎'"""
+    if name.endswith("公") or name.endswith("郎"):
+        return name[:-1]
     return name
 
 
@@ -179,7 +177,7 @@ async def import_excel_data(tenant: Tenant):
                 branch_id = branch_map.get(branch_name)
 
             person = Person(
-                id=uuid.uuid4(),
+                id=generate_uuid(),
                 name=name,
                 gender=gender,
                 generation_id=gen_id,
@@ -234,7 +232,7 @@ async def import_excel_data(tenant: Tenant):
                 branch_id = branch_map.get(branch_name)
 
             person = Person(
-                id=uuid.uuid4(),
+                id=generate_uuid(),
                 name=name,
                 gender=gender,
                 generation_id=gen_id,
@@ -275,7 +273,7 @@ async def import_excel_data(tenant: Tenant):
                 gen_id = gen_map.get(gen_name)
 
             person = Person(
-                id=uuid.uuid4(),
+                id=generate_uuid(),
                 name=name,
                 gender=gender,
                 generation_id=gen_id,
@@ -318,7 +316,7 @@ async def import_excel_data(tenant: Tenant):
 
             if husband_id and wife_id:
                 spouse_rel = SpouseRelation(
-                    id=uuid.uuid4(),
+                    id=generate_uuid(),
                     husband_id=husband_id,
                     wife_id=wife_id,
                     relation_type=str(row["关系类型"]) if pd.notna(row.get("关系类型")) else "marriage",

@@ -1,7 +1,6 @@
 """
 Tenant-level models (each tenant has its own schema)
 """
-import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -18,6 +17,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import json
+
+from app.core.uuid7 import generate_uuid
 
 
 class JSONType(TypeDecorator):
@@ -68,29 +69,29 @@ class Branch(Base):
     
     __tablename__ = "branches"
     
-    id: Mapped[uuid.UUID] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    founder_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    founder_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    
+
     def __repr__(self) -> str:
         return f"<Branch {self.name}>"
 
 
 class Person(Base):
     """Person model"""
-    
+
     __tablename__ = "persons"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
     
     # Basic info
@@ -108,11 +109,11 @@ class Person(Base):
     generation_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     
     # Parents
-    father_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    mother_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    
+    father_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    mother_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
     # Branch
-    branch_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    branch_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     
     # Birth/Death
     birth_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -150,11 +151,11 @@ class Person(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
-    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    
+    created_by: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
     def __repr__(self) -> str:
         return f"<Person {self.name}>"
-    
+
     @property
     def full_name(self) -> str:
         parts = [self.name]
@@ -167,16 +168,16 @@ class Person(Base):
 
 class SpouseRelation(Base):
     """Spouse relation model"""
-    
+
     __tablename__ = "spouse_relations"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
-    husband_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    wife_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    husband_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    wife_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     
     # 关系类型 - 符合中国传统族谱
     # marriage: 婚姻（正室）, concubine: 妾室, adopted: 继配
@@ -193,15 +194,15 @@ class SpouseRelation(Base):
 
 class PersonImage(Base):
     """Person image model"""
-    
+
     __tablename__ = "person_images"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
-    person_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    person_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -217,15 +218,15 @@ class PersonImage(Base):
 
 class PersonVideo(Base):
     """Person video model"""
-    
+
     __tablename__ = "person_videos"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
-    person_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    person_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -240,15 +241,15 @@ class PersonVideo(Base):
 
 class PersonAudio(Base):
     """Person audio model - for oral history, interviews, etc."""
-    
+
     __tablename__ = "person_audios"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
-    person_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    person_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -264,64 +265,64 @@ class PersonAudio(Base):
 
 class ChangeLog(Base):
     """Change log model for audit trail"""
-    
+
     __tablename__ = "change_logs"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
     table_name: Mapped[str] = mapped_column(String(50), nullable=False)
-    record_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    record_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     action: Mapped[str] = mapped_column(String(20), nullable=False)
     old_values: Mapped[Optional[dict]] = mapped_column(JSONType(), nullable=True)
     new_values: Mapped[Optional[dict]] = mapped_column(JSONType(), nullable=True)
-    
-    changed_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    changed_by: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     changed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
     )
-    
+
     # Review
     review_status: Mapped[str] = mapped_column(String(20), default="pending")
-    reviewed_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    reviewed_by: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     review_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
+
     def __repr__(self) -> str:
         return f"<ChangeLog {self.table_name}:{self.record_id}>"
 
 
 class PageView(Base):
     """Page view tracking model"""
-    
+
     __tablename__ = "page_views"
-    
-    id: Mapped[uuid.UUID] = mapped_column(
+
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=generate_uuid,
     )
-    
+
     # Page info
     page_type: Mapped[str] = mapped_column(String(50), nullable=False)  # person, branch, generation, etc.
-    page_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    page_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     tenant_slug: Mapped[str] = mapped_column(String(50), nullable=False)
-    
+
     # View info
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    user_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     is_authenticated: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     # Timestamp
     viewed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
     )
-    
+
     def __repr__(self) -> str:
         return f"<PageView {self.page_type}:{self.page_id}>"
 
