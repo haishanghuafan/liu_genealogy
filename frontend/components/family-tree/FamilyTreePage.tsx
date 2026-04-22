@@ -72,7 +72,7 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
   const fetchRecords = async () => {
     setRecordsLoading(true)
     try {
-      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/records`)
+      const res = await fetch(`/api/v1/t/${tenantSlug}/records`)
       const data = await res.json()
       if (data.success) setRecords(data.data)
     } catch (err) {

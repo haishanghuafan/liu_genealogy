@@ -158,6 +158,108 @@ class ExportService:
         return output
     
     @staticmethod
+    async def export_single_sheet_excel(db: AsyncSession, tenant_slug: str) -> BytesIO:
+        """Export full genealogy data to a single sheet Excel file (matching import template)"""
+        
+        # Get all persons with relationships
+        query = select(Person).order_by(Person.generation_id, Person.sort_order, Person.id)
+        result = await db.execute(query)
+        persons = result.scalars().all()
+        
+        # Get generations and branches for lookup
+        gen_result = await db.execute(select(Generation))
+        generations = {g.id: g for g in gen_result.scalars().all()}
+        
+        branch_result = await db.execute(select(Branch))
+        branches = {b.id: b for b in branch_result.scalars().all()}
+        
+        # Get all spouse relations
+        spouse_result = await db.execute(select(SpouseRelation))
+        spouse_relations = spouse_result.scalars().all()
+        
+        # Build person to spouses map
+        person_to_spouses = {}
+        for rel in spouse_relations:
+            husband_id = str(rel.husband_id)
+            wife_id = str(rel.wife_id)
+            if husband_id not in person_to_spouses:
+                person_to_spouses[husband_id] = []
+            person_to_spouses[husband_id].append(wife_id)
+            if wife_id not in person_to_spouses:
+                person_to_spouses[wife_id] = []
+            person_to_spouses[wife_id].append(husband_id)
+        
+        # Build person index map for relationships
+        person_index_map = {}
+        for idx, p in enumerate(persons, start=1):
+            person_index_map[str(p.id)] = idx
+        
+        # Build export data matching import template
+        data = []
+        for p in persons:
+            gen = generations.get(p.generation_id)
+            branch = branches.get(p.branch_id)
+            
+            # Get father and mother indexes
+            father_index = None
+            mother_index = None
+            
+            if p.father_id and str(p.father_id) in person_index_map:
+                father_index = person_index_map[str(p.father_id)]
+            
+            if p.mother_id and str(p.mother_id) in person_index_map:
+                mother_index = person_index_map[str(p.mother_id)]
+            
+            # Get spouse indexes
+            spouse_indexes = []
+            person_id_str = str(p.id)
+            if person_id_str in person_to_spouses:
+                for spouse_id in person_to_spouses[person_id_str]:
+                    if spouse_id in person_index_map:
+                        spouse_indexes.append(person_index_map[spouse_id])
+            
+            data.append({
+                "人物序号": person_index_map[str(p.id)],
+                "姓名": p.name,
+                "性别": "男" if p.gender == "M" else "女",
+                "是否为外族配偶": "是" if p.is_outsider else "否",
+                "世代数": gen.number if gen else "",
+                "世代名称": gen.name if gen else "",
+                "父亲序号": father_index if father_index else "",
+                "母亲序号": mother_index if mother_index else "",
+                "配偶序号列表": ",".join(map(str, spouse_indexes)) if spouse_indexes else "",
+                "字": p.courtesy_name or "",
+                "号": p.art_name or "",
+                "别名": p.alias or "",
+                "支系名称": branch.name if branch else "",
+                "支系世代名称": "",
+                "辈分字": p.generation_char or "",
+                "出生日期": p.birth_year or "",
+                "逝世日期": p.death_year or "",
+                "葬地（墓形/风水/坐向）": p.burial_place or "",
+                "生平简介（人物事迹和后裔分布）": p.biography or "",
+                "备注": p.notes or "",
+            })
+        
+        # Create DataFrame
+        df = pd.DataFrame(data)
+        
+        # Export to Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='族谱数据', index=False)
+            
+            # Auto-adjust column widths
+            worksheet = writer.sheets['族谱数据']
+            for idx, col in enumerate(df.columns):
+                max_len = max(df[col].astype(str).str.len().max(), len(col)) + 2
+                col_letter = chr(65 + idx) if idx < 26 else f"{chr(64 + idx // 26)}{chr(65 + idx % 26)}"
+                worksheet.column_dimensions[col_letter].width = min(max_len, 50)
+        
+        output.seek(0)
+        return output
+    
+    @staticmethod
     async def export_full_excel(db: AsyncSession, tenant_slug: str) -> BytesIO:
         """Export full genealogy data to a single Excel file with multiple sheets"""
         

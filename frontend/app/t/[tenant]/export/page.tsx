@@ -17,7 +17,7 @@ export default function ExportPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/export/${type}/excel`, {
+      const res = await fetch(`/api/v1/t/${tenantSlug}/export/${type}/excel`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       
@@ -42,29 +42,23 @@ export default function ExportPage() {
   
   const exportOptions = [
     {
+      id: "single-sheet",
+      title: "📊 族谱数据（单表）",
+      description: "导出所有族谱数据到单个 Excel 工作表，包含人物、世代、关系等完整信息，可直接用于导入",
+      icon: "📊",
+      highlight: true,
+    },
+    {
       id: "persons",
       title: "👥 人物数据",
-      description: "导出所有人物的详细信息，包括姓名、世代、生卒年等",
+      description: "仅导出人物详细信息列表",
       icon: "👥",
     },
     {
-      id: "generations",
-      title: "📊 世代数据",
-      description: "导出世代列表及描述信息",
-      icon: "📊",
-    },
-    {
-      id: "relations",
-      title: "💑 配偶关系",
-      description: "导出所有配偶关系数据",
-      icon: "💑",
-    },
-    {
       id: "full",
-      title: "📦 完整数据包",
-      description: "导出所有数据到一个 Excel 文件（多个工作表）",
+      title: "📦 完整数据包（多表）",
+      description: "导出所有数据到多个 Excel 工作表（世代、人物、配偶关系）",
       icon: "📦",
-      highlight: true,
     },
   ]
   
@@ -136,9 +130,10 @@ export default function ExportPage() {
         <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h4 className="font-medium text-blue-800 mb-2">💡 提示</h4>
           <ul className="text-sm text-blue-700 space-y-1">
+            <li>• 推荐使用"族谱数据（单表）"导出，格式与导入模板完全匹配</li>
             <li>• 导出的 Excel 文件可用 Microsoft Office 或 WPS 打开</li>
             <li>• 建议定期导出完整数据包进行备份</li>
-            <li>• 导出的数据也可用于导入到其他系统</li>
+            <li>• 单表导出的数据可直接用于重新导入系统</li>
           </ul>
         </div>
       </div>
