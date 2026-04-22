@@ -29,13 +29,13 @@ interface Role {
 }
 
 export default function AdminRolesPage() {
+  const [activeTab, setActiveTab] = useState<"system" | "tenant">("system")
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup>({})
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  // Role editing
   const [editingRole, setEditingRole] = useState<string | null>(null)
   const [roleForm, setRoleForm] = useState<{
     name: string
@@ -44,11 +44,11 @@ export default function AdminRolesPage() {
   } | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // Role creating
   const [creatingRole, setCreatingRole] = useState(false)
   const [newRoleForm, setNewRoleForm] = useState({
     name: "",
     code: "",
+    scope: "system" as "system" | "tenant",
     description: "",
     permission_codes: [] as string[],
   })
@@ -64,7 +64,7 @@ export default function AdminRolesPage() {
         fetch("http://localhost:8012/api/v1/admin/permissions/list", {
           headers: { "Authorization": `Bearer ${token}` }
         }),
-        fetch("http://localhost:8012/api/v1/admin/permissions/roles?scope=system", {
+        fetch("http://localhost:8012/api/v1/admin/permissions/roles", {
           headers: { "Authorization": `Bearer ${token}` }
         }),
       ])
@@ -80,6 +80,9 @@ export default function AdminRolesPage() {
       setLoading(false)
     }
   }
+
+  const systemRoles = roles.filter(r => r.scope === "system")
+  const tenantRoles = roles.filter(r => r.scope === "tenant")
 
   const openEditRole = (role: Role) => {
     setEditingRole(role.id)
@@ -149,17 +152,14 @@ export default function AdminRolesPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...newRoleForm,
-          scope: "system",
-        })
+        body: JSON.stringify(newRoleForm)
       })
 
       const data = await res.json()
       if (data.success) {
         setSuccess(data.message)
         setCreatingRole(false)
-        setNewRoleForm({ name: "", code: "", description: "", permission_codes: [] })
+        setNewRoleForm({ name: "", code: "", scope: "system", description: "", permission_codes: [] })
         fetchData()
       } else {
         setError(data.detail || data.message || "创建失败")
@@ -168,6 +168,31 @@ export default function AdminRolesPage() {
       setError("网络错误")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleInitPermissions = async () => {
+    if (!confirm("确定要初始化权限数据吗？这将创建所有内置角色和权限。")) return
+
+    try {
+      const token = localStorage.getItem("access_token") || ""
+      const res = await fetch("http://localhost:8012/api/v1/admin/permissions/init", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setSuccess(data.message)
+        fetchData()
+      } else {
+        setError(data.detail || data.message || "初始化失败")
+      }
+    } catch (err) {
+      setError("网络错误")
     }
   }
 
@@ -228,6 +253,8 @@ export default function AdminRolesPage() {
     setNewRoleForm({ ...newRoleForm, permission_codes: [] })
   }
 
+  const currentRoles = activeTab === "system" ? systemRoles : tenantRoles
+
   if (loading) {
     return (
       <main className="min-h-screen bg-paper pt-20 px-4">
@@ -275,11 +302,41 @@ export default function AdminRolesPage() {
           </div>
         )}
 
+        <div className="flex gap-4 mb-8 border-b border-ink/10">
+          <button
+            onClick={() => setActiveTab("system")}
+            className={`pb-3 px-2 font-medium border-b-2 transition-colors ${
+              activeTab === "system" ? "border-vermillion text-vermillion" : "border-transparent text-ink-muted"
+            }`}
+          >
+            🏛️ 系统级角色 ({systemRoles.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("tenant")}
+            className={`pb-3 px-2 font-medium border-b-2 transition-colors ${
+              activeTab === "tenant" ? "border-vermillion text-vermillion" : "border-transparent text-ink-muted"
+            }`}
+          >
+            🏠 租户级角色 ({tenantRoles.length})
+          </button>
+          <button
+            onClick={handleInitPermissions}
+            className="pb-3 px-2 font-medium border-b-2 border-transparent text-ink-muted hover:text-vermillion transition-colors"
+          >
+            🔄 初始化数据
+          </button>
+        </div>
+
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">系统角色</h2>
+            <h2 className="text-lg font-semibold">
+              {activeTab === "system" ? "系统级角色" : "租户级角色"}
+            </h2>
             <button
-              onClick={() => setCreatingRole(true)}
+              onClick={() => {
+                setNewRoleForm({ ...newRoleForm, scope: activeTab })
+                setCreatingRole(true)
+              }}
               className="bg-vermillion text-white px-4 py-2 rounded-lg hover:bg-vermillion-dark transition-colors"
             >
               + 创建角色
@@ -287,7 +344,7 @@ export default function AdminRolesPage() {
           </div>
 
           <div className="space-y-4">
-            {roles.map((role) => (
+            {currentRoles.map((role) => (
               <div key={role.id} className="bg-white rounded-xl border border-ink/5 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -302,6 +359,11 @@ export default function AdminRolesPage() {
                         {role.is_builtin && (
                           <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">内置</span>
                         )}
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          role.scope === "system" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                        }`}>
+                          {role.scope === "system" ? "系统级" : "租户级"}
+                        </span>
                       </div>
                       <div className="text-sm text-ink-muted font-mono">{role.code}</div>
                       {role.description && (
@@ -331,11 +393,17 @@ export default function AdminRolesPage() {
                 </div>
               </div>
             ))}
+
+            {currentRoles.length === 0 && (
+              <div className="text-center py-12 text-ink-muted">
+                <div className="text-4xl mb-4">📭</div>
+                <p>暂无角色</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Edit Role Modal */}
       {editingRole && roleForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -421,13 +489,40 @@ export default function AdminRolesPage() {
         </div>
       )}
 
-      {/* Create Role Modal */}
       {creatingRole && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-6">创建角色</h2>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">角色层级</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="scope"
+                      value="system"
+                      checked={newRoleForm.scope === "system"}
+                      onChange={(e) => setNewRoleForm({ ...newRoleForm, scope: e.target.value as "system" | "tenant" })}
+                      className="w-4 h-4"
+                    />
+                    <span>系统级</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="scope"
+                      value="tenant"
+                      checked={newRoleForm.scope === "tenant"}
+                      onChange={(e) => setNewRoleForm({ ...newRoleForm, scope: e.target.value as "system" | "tenant" })}
+                      className="w-4 h-4"
+                    />
+                    <span>租户级</span>
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">角色名称 *</label>
                 <input

@@ -365,6 +365,33 @@ async def init_permissions(
         
         new_roles += 1
     
+    # Seed built-in tenant roles
+    for role_data in BUILTIN_TENANT_ROLES:
+        stmt = select(Role).where(Role.code == role_data["code"])
+        result = await db.execute(stmt)
+        existing = result.scalar_one_or_none()
+        
+        if existing:
+            continue
+        
+        role = Role(
+            name=role_data["name"],
+            code=role_data["code"],
+            scope="tenant",
+            description=role_data["description"],
+            is_builtin=True,
+        )
+        db.add(role)
+        await db.flush()
+        
+        # Add permissions
+        for perm_code in role_data.get("permissions", []):
+            if perm_code in all_perms:
+                rp = RolePermission(role_id=role.id, permission_id=all_perms[perm_code].id)
+                db.add(rp)
+        
+        new_roles += 1
+    
     await db.commit()
     
     return {
