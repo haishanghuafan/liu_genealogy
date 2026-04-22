@@ -248,3 +248,109 @@ class Subscription(Base):
     
     def __repr__(self) -> str:
         return f"<Subscription {self.tenant_id} - {self.plan}>"
+
+
+class Permission(Base):
+    """Permission definition model"""
+
+    __tablename__ = "permissions"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=generate_uuid,
+    )
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    group: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resource_type: Mapped[str] = mapped_column(String(50), default="system")
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    
+    # Relationships
+    roles: Mapped[list["RolePermission"]] = relationship(back_populates="permission", cascade="all, delete-orphan")
+    
+    def __repr__(self) -> str:
+        return f"<Permission {self.code}>"
+
+
+class Role(Base):
+    """Role model - can be system-level or tenant-level"""
+
+    __tablename__ = "roles"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=generate_uuid,
+    )
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    
+    # Scope: 'system' or 'tenant'
+    scope: Mapped[str] = mapped_column(String(20), default="system", index=True)
+    
+    # If scope is 'tenant', this is the tenant_id; NULL for system roles
+    tenant_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_builtin: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    
+    # Relationships
+    permissions: Mapped[list["RolePermission"]] = relationship(back_populates="role", cascade="all, delete-orphan")
+    
+    def __repr__(self) -> str:
+        return f"<Role {self.code}>"
+
+
+class RolePermission(Base):
+    """Role-Permission relationship model"""
+
+    __tablename__ = "role_permissions"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=generate_uuid,
+    )
+    role_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    permission_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    
+    # Relationships
+    role: Mapped["Role"] = relationship(back_populates="permissions")
+    permission: Mapped["Permission"] = relationship(back_populates="roles")
+    
+    __table_args__ = (
+    )
+    
+    def __repr__(self) -> str:
+        return f"<RolePermission {self.role_id}:{self.permission_id}>"

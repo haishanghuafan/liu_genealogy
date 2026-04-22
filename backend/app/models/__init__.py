@@ -1,7 +1,7 @@
 """
 Models package
 """
-from app.models.system import Subscription, Tenant, TenantUser, User
+from app.models.system import Subscription, Tenant, TenantUser, User, Permission, Role, RolePermission
 from app.models.tenant import (
     Branch,
     ChangeLog,
@@ -19,6 +19,9 @@ __all__ = [
     "User",
     "TenantUser",
     "Subscription",
+    "Permission",
+    "Role",
+    "RolePermission",
     # Tenant models
     "Generation",
     "Branch",

@@ -15,10 +15,41 @@ interface User {
   last_login_at: string | null
 }
 
-const ROLE_OPTIONS = [
+interface Tenant {
+  id: string
+  name: string
+  slug: string
+}
+
+interface TenantMembership {
+  id: string
+  tenant_id: string
+  tenant_name: string
+  tenant_slug: string
+  role: string
+  person_id: string | null
+}
+
+interface Role {
+  id: string
+  name: string
+  code: string
+  scope: string
+  is_builtin: boolean
+  permission_codes: string[]
+}
+
+const SYSTEM_ROLE_OPTIONS = [
   { value: "user", label: "普通用户" },
   { value: "operator", label: "运营人员" },
   { value: "super_admin", label: "超级管理员" },
+]
+
+const TENANT_ROLE_OPTIONS = [
+  { value: "tenant_admin", label: "管理员" },
+  { value: "editor", label: "编辑者" },
+  { value: "reviewer", label: "审核员" },
+  { value: "member", label: "成员" },
 ]
 
 export default function AdminUsersPage() {
@@ -35,6 +66,9 @@ export default function AdminUsersPage() {
     system_role: string
     is_active: boolean
   } | null>(null)
+  const [userTenants, setUserTenants] = useState<TenantMembership[]>([])
+  const [allTenants, setAllTenants] = useState<Tenant[]>([])
+  const [showTenantTab, setShowTenantTab] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -78,15 +112,37 @@ export default function AdminUsersPage() {
     }
   }
 
-  const openEditModal = (user: User) => {
+  const openEditModal = async (user: User) => {
     setEditingUser(user.id)
     setFormData({
       nickname: user.nickname || "",
       system_role: user.system_role,
       is_active: user.is_active,
     })
+    setShowTenantTab(false)
     setError("")
     setSuccess("")
+    
+    // Fetch user's tenant memberships
+    const token = localStorage.getItem("access_token") || ""
+    try {
+      const [tenantsRes, allTenantsRes] = await Promise.all([
+        fetch(`http://localhost:8012/api/v1/auth/admin/users/${user.id}/tenants`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        }),
+        fetch("http://localhost:8012/api/v1/tenants", {
+          headers: { "Authorization": `Bearer ${token}` }
+        }),
+      ])
+      
+      const tenantsData = await tenantsRes.json()
+      if (tenantsData.success) setUserTenants(tenantsData.data)
+      
+      const allData = await allTenantsRes.json()
+      if (allData.success) setAllTenants(allData.data)
+    } catch (err) {
+      console.error("Failed to fetch tenant data")
+    }
   }
 
   const handleSave = async () => {
@@ -285,59 +341,185 @@ export default function AdminUsersPage() {
       {/* Edit Modal */}
       {editingUser && formData && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-6">编辑用户</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">昵称</label>
-                <input
-                  type="text"
-                  value={formData.nickname}
-                  onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">角色</label>
-                <select
-                  value={formData.system_role}
-                  onChange={(e) => setFormData({ ...formData, system_role: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                >
-                  {ROLE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">启用账号</span>
-                </label>
-              </div>
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">编辑用户</h2>
+            
+            {/* Tabs */}
+            <div className="flex gap-4 mb-6 border-b">
+              <button
+                onClick={() => setShowTenantTab(false)}
+                className={`pb-2 px-2 text-sm font-medium border-b-2 ${
+                  !showTenantTab ? "border-vermillion text-vermillion" : "border-transparent text-gray-500"
+                }`}
+              >
+                基本信息
+              </button>
+              <button
+                onClick={() => setShowTenantTab(true)}
+                className={`pb-2 px-2 text-sm font-medium border-b-2 ${
+                  showTenantTab ? "border-vermillion text-vermillion" : "border-transparent text-gray-500"
+                }`}
+              >
+                租户角色 ({userTenants.length})
+              </button>
             </div>
 
+            {!showTenantTab ? (
+              /* Basic Info Tab */
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">昵称</label>
+                  <input
+                    type="text"
+                    value={formData.nickname}
+                    onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">系统角色</label>
+                  <select
+                    value={formData.system_role}
+                    onChange={(e) => setFormData({ ...formData, system_role: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    {SYSTEM_ROLE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">启用账号</span>
+                  </label>
+                </div>
+              </div>
+            ) : (
+              /* Tenant Roles Tab */
+              <div className="space-y-4">
+                {/* Current tenant memberships */}
+                {userTenants.length > 0 ? (
+                  <div className="space-y-3">
+                    {userTenants.map(membership => (
+                      <div key={membership.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <span className="font-medium">{membership.tenant_name}</span>
+                            <span className="text-sm text-gray-500 ml-2">({membership.tenant_slug})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="text-sm text-gray-600">角色：</label>
+                          <select
+                            value={membership.role}
+                            onChange={async (e) => {
+                              const token = localStorage.getItem("access_token") || ""
+                              const res = await fetch(
+                                `http://localhost:8012/api/v1/auth/admin/users/${editingUser}/tenants/${membership.tenant_id}`,
+                                {
+                                  method: "PUT",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${token}`
+                                  },
+                                  body: JSON.stringify({ role: e.target.value })
+                                }
+                              )
+                              const data = await res.json()
+                              if (data.success) {
+                                setSuccess(data.message)
+                                openEditModal({ id: editingUser } as User)
+                              }
+                            }}
+                            className="border border-gray-300 rounded-lg px-3 py-1 text-sm"
+                          >
+                            {TENANT_ROLE_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>该用户尚未加入任何租户</p>
+                  </div>
+                )}
+
+                {/* Add to tenant */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium mb-2">添加到租户</h4>
+                  <div className="flex gap-2">
+                    <select
+                      id="add-tenant-select"
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">选择租户...</option>
+                      {allTenants
+                        .filter(t => !userTenants.some(m => m.tenant_id === t.id))
+                        .map(t => (
+                          <option key={t.id} value={t.id}>{t.name} ({t.slug})</option>
+                        ))
+                      }
+                    </select>
+                    <button
+                      onClick={async () => {
+                        const select = document.getElementById("add-tenant-select") as HTMLSelectElement
+                        if (!select.value) return
+                        
+                        const token = localStorage.getItem("access_token") || ""
+                        const res = await fetch(
+                          `http://localhost:8012/api/v1/auth/admin/users/${editingUser}/tenants`,
+                          {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              "Authorization": `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ tenant_id: select.value, role: "member" })
+                          }
+                        )
+                        const data = await res.json()
+                        if (data.success) {
+                          setSuccess(data.message)
+                          openEditModal({ id: editingUser } as User)
+                        } else {
+                          setError(data.detail || data.message || "添加失败")
+                        }
+                      }}
+                      className="bg-vermillion text-white px-4 py-2 rounded-lg text-sm hover:bg-vermillion-dark"
+                    >
+                      添加
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3 mt-6 pt-6 border-t">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 bg-vermillion text-white py-3 rounded-lg hover:bg-vermillion-dark transition-colors disabled:opacity-50"
-              >
-                {saving ? "保存中..." : "保存"}
-              </button>
+              {!showTenantTab && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 bg-vermillion text-white py-3 rounded-lg hover:bg-vermillion-dark transition-colors disabled:opacity-50"
+                >
+                  {saving ? "保存中..." : "保存"}
+                </button>
+              )}
               <button
                 onClick={() => setEditingUser(null)}
                 className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                取消
+                关闭
               </button>
             </div>
           </div>

@@ -21,6 +21,7 @@ from app.api.v1.endpoints import (
     spouse_relations,
     import_data,
     person_media,
+    permissions,
 )
 
 api_router = APIRouter()
@@ -51,3 +52,6 @@ tenant_router.include_router(spouse_relations.router)
 tenant_router.include_router(import_data.router)
 
 api_router.include_router(tenant_router)
+
+# Admin routers
+api_router.include_router(permissions.router)

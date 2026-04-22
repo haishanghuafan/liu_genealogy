@@ -13,19 +13,8 @@ interface Tenant {
   created_at: string
 }
 
-interface User {
-  id: string
-  email: string
-  nickname: string | null
-  system_role: string
-  is_active: boolean
-  created_at: string
-}
-
 export default function AdminTenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [activeTab, setActiveTab] = useState<"tenants" | "users">("tenants")
   const [loading, setLoading] = useState(true)
   
   useEffect(() => {
@@ -40,14 +29,6 @@ export default function AdminTenantsPage() {
       })
       const tenantsData = await tenantsRes.json()
       if (tenantsData.success) setTenants(tenantsData.data)
-      
-      const usersRes = await fetch("http://localhost:8012/api/v1/auth/admin/users", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      if (usersRes.ok) {
-        const usersData = await usersRes.json()
-        if (usersData.success) setUsers(usersData.data)
-      }
     } catch (err) {
       console.error("Failed to fetch")
     } finally {
@@ -62,15 +43,8 @@ export default function AdminTenantsPage() {
     enterprise: "企业版",
   }
   
-  const ROLE_NAMES: Record<string, string> = {
-    user: "普通用户",
-    operator: "运营人员",
-    super_admin: "超级管理员",
-  }
-  
   return (
     <main className="min-h-screen bg-paper">
-      {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-ink/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
@@ -87,35 +61,14 @@ export default function AdminTenantsPage() {
       </nav>
       
       <div className="pt-24 px-4 max-w-6xl mx-auto">
-        <h1 className="text-3xl font-serif font-semibold mb-8">⚙️ 平台管理</h1>
-        
-        {/* Tabs */}
-        <div className="flex gap-4 mb-8 border-b border-ink/10">
-          <button
-            onClick={() => setActiveTab("tenants")}
-            className={`pb-3 px-2 font-medium border-b-2 transition-colors ${
-              activeTab === "tenants" ? "border-vermillion text-vermillion" : "border-transparent text-ink-muted"
-            }`}
-          >
-            🏢 租户管理 ({tenants.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`pb-3 px-2 font-medium border-b-2 transition-colors ${
-              activeTab === "users" ? "border-vermillion text-vermillion" : "border-transparent text-ink-muted"
-            }`}
-          >
-            👥 用户管理 ({users.length})
-          </button>
-        </div>
+        <h1 className="text-3xl font-serif font-semibold mb-8">🏢 租户管理</h1>
         
         {loading ? (
           <div className="text-center py-20">
             <div className="text-4xl mb-4">⏳</div>
             <p className="text-ink-muted">加载中...</p>
           </div>
-        ) : activeTab === "tenants" ? (
-          /* Tenants Table */
+        ) : (
           <div className="bg-white rounded-xl border border-ink/5 overflow-hidden">
             <table className="w-full">
               <thead className="bg-paper-warm">
@@ -174,59 +127,11 @@ export default function AdminTenantsPage() {
               </div>
             )}
           </div>
-        ) : (
-          /* Users Table */
-          <div className="bg-white rounded-xl border border-ink/5 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-paper-warm">
-                <tr>
-                  <th className="text-left px-6 py-4 font-medium">昵称</th>
-                  <th className="text-left px-6 py-4 font-medium">邮箱</th>
-                  <th className="text-left px-6 py-4 font-medium">角色</th>
-                  <th className="text-left px-6 py-4 font-medium">状态</th>
-                  <th className="text-left px-6 py-4 font-medium">注册时间</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink/5">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium">{user.nickname || "-"}</td>
-                    <td className="px-6 py-4">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        user.system_role === "super_admin" ? "bg-amber-100 text-amber-700" :
-                        user.system_role === "operator" ? "bg-blue-100 text-blue-700" :
-                        "bg-gray-100 text-gray-600"
-                      }`}>
-                        {ROLE_NAMES[user.system_role] || user.system_role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-1 rounded ${user.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                        {user.is_active ? "活跃" : "禁用"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-ink-muted">
-                      {new Date(user.created_at).toLocaleDateString("zh-CN")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            
-            {users.length === 0 && (
-              <div className="text-center py-12 text-ink-muted">
-                <div className="text-4xl mb-4">👥</div>
-                <p>暂无用户数据</p>
-              </div>
-            )}
-          </div>
         )}
         
-        {/* Platform Stats */}
         <div className="mt-10">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span>📊</span> 平台概览
+            <span>📊</span> 租户概览
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl p-6 border border-ink/5">

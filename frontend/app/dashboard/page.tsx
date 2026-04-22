@@ -201,6 +201,24 @@ export default function DashboardPage() {
               </Link>
               
               <Link
+                href="/admin/permissions"
+                className="bg-white rounded-xl p-6 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1"
+              >
+                <div className="text-3xl mb-3">📋</div>
+                <h3 className="font-semibold mb-1">权限管理</h3>
+                <p className="text-sm text-ink-muted">查看系统所有权限</p>
+              </Link>
+              
+              <Link
+                href="/admin/roles"
+                className="bg-white rounded-xl p-6 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1"
+              >
+                <div className="text-3xl mb-3">🔐</div>
+                <h3 className="font-semibold mb-1">角色管理</h3>
+                <p className="text-sm text-ink-muted">创建角色和分配权限</p>
+              </Link>
+              
+              <Link
                 href="/admin/stats"
                 className="bg-white rounded-xl p-6 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1"
               >

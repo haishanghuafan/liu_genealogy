@@ -330,3 +330,104 @@ async def admin_delete_user(
     await db.commit()
     
     return {"success": True, "message": "用户已删除"}
+
+
+@router.get("/admin/users/{user_id}/tenants", response_model=dict)
+async def admin_get_user_tenants(
+    user_id: str,
+    _admin=Depends(get_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: Get user's tenant memberships"""
+    from uuid import UUID
+    from app.models import TenantUser, Tenant
+    
+    stmt = (
+        select(TenantUser, Tenant.name, Tenant.slug)
+        .join(Tenant, Tenant.id == TenantUser.tenant_id)
+        .where(TenantUser.user_id == UUID(user_id))
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": str(tu.id),
+                "tenant_id": str(tu.tenant_id),
+                "tenant_name": name,
+                "tenant_slug": slug,
+                "role": tu.role,
+                "person_id": str(tu.person_id) if tu.person_id else None,
+            }
+            for tu, name, slug in rows
+        ],
+    }
+
+
+@router.put("/admin/users/{user_id}/tenants/{tenant_id}", response_model=dict)
+async def admin_update_user_tenant_role(
+    user_id: str,
+    tenant_id: str,
+    data: dict,
+    _admin=Depends(get_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: Update user's role in a tenant"""
+    from uuid import UUID
+    from app.models import TenantUser
+    
+    stmt = select(TenantUser).where(
+        TenantUser.user_id == UUID(user_id),
+        TenantUser.tenant_id == UUID(tenant_id),
+    )
+    result = await db.execute(stmt)
+    tu = result.scalar_one_or_none()
+    
+    if not tu:
+        raise HTTPException(404, "Tenant membership not found")
+    
+    if "role" in data:
+        tu.role = data["role"]
+    
+    await db.commit()
+    
+    return {"success": True, "message": "角色已更新"}
+
+
+@router.post("/admin/users/{user_id}/tenants", response_model=dict)
+async def admin_add_user_to_tenant(
+    user_id: str,
+    data: dict,
+    _admin=Depends(get_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: Add user to a tenant"""
+    from uuid import UUID
+    from app.models import TenantUser
+    
+    tenant_id = data.get("tenant_id")
+    role = data.get("role", "member")
+    
+    if not tenant_id:
+        raise HTTPException(400, "tenant_id is required")
+    
+    # Check if already exists
+    stmt = select(TenantUser).where(
+        TenantUser.user_id == UUID(user_id),
+        TenantUser.tenant_id == UUID(tenant_id),
+    )
+    result = await db.execute(stmt)
+    if result.scalar_one_or_none():
+        raise HTTPException(400, "User already in this tenant")
+    
+    tu = TenantUser(
+        user_id=UUID(user_id),
+        tenant_id=UUID(tenant_id),
+        role=role,
+    )
+    db.add(tu)
+    await db.commit()
+    
+    return {"success": True, "message": "已添加到租户"}
