@@ -79,6 +79,71 @@ async def import_excel(
             }
 
 
+@router.post("/excel/replace", response_model=dict)
+async def replace_import_excel(
+    file: UploadFile = File(..., description="Excel file to import (will replace all existing data)"),
+    request: Request = None,
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Replace all existing genealogy data with new import
+    
+    WARNING: This will delete ALL existing persons, spouse relations, branches, and generations!
+    
+    Required columns:
+    - name: 姓名
+    - gender: 性别 (M/F)
+    
+    Optional columns:
+    - generation_number: 世代编号
+    - branch_name: 支系名称
+    - father_name: 父亲姓名
+    - mother_name: 母亲姓名
+    - courtesy_name: 字
+    - art_name: 号
+    - birth_year: 出生年份
+    - death_year: 逝世年份
+    - birth_place: 出生地
+    - biography: 生平简介
+    - sort_order: 排序
+    
+    Returns detailed import results with success/error for each row
+    """
+    tenant = require_tenant(request)
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(400, "只支持 Excel 文件 (.xlsx, .xls)")
+    
+    try:
+        content = await file.read()
+    except Exception as e:
+        raise HTTPException(400, f"文件读取失败：{str(e)}")
+    
+    service = ExcelImportService(db, tenant.slug)
+    result = await service.replace_import(content)
+    
+    if result.get("success"):
+        return {
+            "success": True,
+            "message": f"已替换所有数据，成功导入 {result.get('imported_count', 0)} 条记录",
+            "imported_count": result.get('imported_count', 0),
+            "error_count": result.get('error_count', 0),
+            "details": result.get('details', [])
+        }
+    else:
+        if "error" in result and len(result.get("errors", [])) == 0:
+            raise HTTPException(400, result.get("error"))
+        else:
+            return {
+                "success": False,
+                "message": f"导入完成，{result.get('imported_count', 0)} 条成功，{result.get('error_count', 0)} 条失败",
+                "imported_count": result.get('imported_count', 0),
+                "error_count": result.get('error_count', 0),
+                "errors": result.get('errors', []),
+                "details": result.get('details', [])
+            }
+
+
 @router.get("/excel-template", response_model=dict)
 async def get_excel_template():
     """

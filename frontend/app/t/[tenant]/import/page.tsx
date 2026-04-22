@@ -4,7 +4,8 @@ import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle, AlertTriangle } from "lucide-react"
 import * as XLSX from "xlsx"
 
 interface ImportResult {
@@ -22,6 +23,7 @@ export default function ImportExcelPage() {
   
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [replaceMode, setReplaceMode] = useState(false)
   const [result, setResult] = useState<{
     success: boolean
     imported_count: number
@@ -60,7 +62,10 @@ export default function ImportExcelPage() {
       const formData = new FormData()
       formData.append('file', file)
       
-      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/import/excel`, {
+      const endpoint = replaceMode 
+        ? `http://localhost:8012/api/v1/t/${tenantSlug}/import/excel/replace`
+        : `http://localhost:8012/api/v1/t/${tenantSlug}/import/excel`
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -69,6 +74,12 @@ export default function ImportExcelPage() {
       })
       
       const data = await res.json()
+      
+      if (!res.ok) {
+        setError(data.detail || data.message || "导入失败，请重试")
+        return
+      }
+      
       setResult(data)
     } catch (err) {
       setError("上传失败，请重试")
@@ -79,121 +90,13 @@ export default function ImportExcelPage() {
   
   const handleDownloadTemplate = async () => {
     try {
-      // Create Excel workbook
-      const wb = XLSX.utils.book_new()
-
-      // 统一表格：族谱人物数据（单表设计）
-      // 字段顺序：基本信息 -> 世代/支系 -> 家庭关系 -> 详细信息
-      const headers = [
-        // 基本信息（必填）
-        "姓名*", "性别*", "是否为外族配偶",
-        // 世代与支系
-        "世代数", "世代名称", "支系名称", "支系描述",
-        // 家庭关系
-        "父亲姓名", "母亲姓名", "配偶姓名",
-        // 称谓信息
-        "字", "号", "别名", "辈份字",
-        // 生卒信息
-        "出生年份", "逝世年份", "出生地",
-        // 墓葬信息
-        "葬地", "墓形/风水", "坐向",
-        // 文字描述
-        "生平简介", "主要事迹", "后裔分布",
-        // 其他
-        "备注", "排序"
-      ]
-
-      // 示例数据：展示一个完整家族结构
-      const examples = [
-        // 第1世：始祖
-        ["刘邦", "男", "否", 1, "第1世", "沛县支系", "始祖刘邦所在支系", "", "", "吕雉", "", "", "", "", -256, -195, "江苏徐州", "", "", "", "汉高祖，汉朝开国皇帝", "建立汉朝，统一中国", "", "", 1],
-        // 第1世：配偶
-        ["吕雉", "女", "是", 1, "第1世", "", "", "", "", "刘邦", "", "", "", "", -241, -180, "", "", "", "", "汉高后，皇后", "辅佐文帝、景帝", "", "", 2],
-        // 第2世：子女
-        ["刘盈", "男", "否", 2, "第2世", "", "", "刘邦", "吕雉", "张嫣", "", "", "", "", -210, -188, "", "", "", "", "汉惠帝", "", "", "", 1],
-        ["刘肥", "男", "否", 2, "第2世", "齐王支系", "齐王刘肥后裔", "刘邦", "曹氏", "", "", "", "", "", -221, -189, "", "", "", "", "齐悼惠王", "", "", "", 2],
-        ["刘恒", "男", "否", 2, "第2世", "文帝支系", "汉文帝刘恒后裔", "刘邦", "薄姬", "窦漪房", "", "", "", "", -203, -157, "", "", "", "", "汉文帝", "开创文景之治", "", "", 3],
-        // 第2世：配偶
-        ["张嫣", "女", "是", 2, "第2世", "", "", "", "", "刘盈", "", "", "", "", -202, -163, "", "", "", "", "孝惠皇后", "", "", "", 4],
-        ["窦漪房", "女", "是", 2, "第2世", "", "", "", "", "刘恒", "", "", "", "", -205, -135, "", "", "", "", "窦太后", "", "", "", 5],
-        // 第3世
-        ["刘启", "男", "否", 3, "第3世", "", "", "刘恒", "窦漪房", "王娡", "", "", "", "", -188, -141, "", "", "", "", "汉景帝", "继续文景之治", "", "", 1],
-        ["刘武", "男", "否", 3, "第3世", "梁王支系", "梁孝王刘武后裔", "刘恒", "窦漪房", "", "", "", "", "", -184, -144, "", "", "", "", "梁孝王", "", "", "", 2],
-        // 第3世：配偶
-        ["王娡", "女", "是", 3, "第3世", "", "", "", "", "刘启", "", "", "", "", -173, -126, "", "", "", "", "孝景皇后", "", "", "", 3],
-        // 第4世
-        ["刘彻", "男", "否", 4, "第4世", "", "", "刘启", "王娡", "陈阿娇", "", "", "", "", -156, -87, "", "", "", "", "汉武帝", "开疆拓土，独尊儒术", "", "", 1],
-      ]
-
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...examples])
-
-      // 设置列宽（按字段分组）
-      ws['!cols'] = [
-        // 基本信息
-        { wch: 10 }, { wch: 8 }, { wch: 12 },
-        // 世代与支系
-        { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 20 },
-        // 家庭关系
-        { wch: 10 }, { wch: 10 }, { wch: 10 },
-        // 称谓信息
-        { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 },
-        // 生卒信息
-        { wch: 10 }, { wch: 10 }, { wch: 12 },
-        // 墓葬信息
-        { wch: 12 }, { wch: 12 }, { wch: 10 },
-        // 文字描述
-        { wch: 30 }, { wch: 30 }, { wch: 20 },
-        // 其他
-        { wch: 20 }, { wch: 8 }
-      ]
-
-      // 添加工作表
-      XLSX.utils.book_append_sheet(wb, ws, "族谱人物数据")
-
-      // 添加说明工作表
-      const helpHeaders = ["字段名", "说明", "是否必填", "示例值"]
-      const helpData = [
-        ["姓名*", "人物姓名", "是", "刘邦"],
-        ["性别*", "男/女", "是", "男"],
-        ["是否为外族配偶", "是/否，标记嫁入/入赘人员", "否", "否"],
-        ["世代数", "数字，如1,2,3", "否", "1"],
-        ["世代名称", "如'第1世'", "否", "第1世"],
-        ["支系名称", "所属支系名称", "否", "沛县支系"],
-        ["支系描述", "支系说明", "否", "始祖刘邦所在支系"],
-        ["父亲姓名", "父亲姓名，用于建立父子关系", "否", "刘邦"],
-        ["母亲姓名", "母亲姓名，用于建立母子关系", "否", "吕雉"],
-        ["配偶姓名", "主要配偶姓名，用于建立配偶关系", "否", "吕雉"],
-        ["字", "表字", "否", "季"],
-        ["号", "别号", "否", ""],
-        ["别名", "其他名称", "否", ""],
-        ["辈份字", "辈分字", "否", ""],
-        ["出生年份", "出生年份，公元前用负数", "否", "-256"],
-        ["逝世年份", "逝世年份，公元前用负数", "否", "-195"],
-        ["出生地", "出生地点", "否", "江苏徐州"],
-        ["葬地", "安葬地点", "否", ""],
-        ["墓形/风水", "墓葬形制", "否", ""],
-        ["坐向", "墓葬坐向", "否", ""],
-        ["生平简介", "人物简介", "否", "汉高祖，汉朝开国皇帝"],
-        ["主要事迹", "重要事迹", "否", "建立汉朝，统一中国"],
-        ["后裔分布", "后代分布情况", "否", ""],
-        ["备注", "其他备注", "否", ""],
-        ["排序", "同世代内排序，数字越小越靠前", "否", "1"],
-      ]
-      const helpWs = XLSX.utils.aoa_to_sheet([helpHeaders, ...helpData])
-      helpWs['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 10 }, { wch: 20 }]
-      XLSX.utils.book_append_sheet(wb, helpWs, "字段说明")
-
-      // Generate Excel file
-      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-
-      // Download file
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = '族谱数据导入模板.xlsx'
-      a.click()
-      URL.revokeObjectURL(url)
+      // 下载静态模板文件
+      const link = document.createElement("a")
+      link.href = "/templates/liu_genealogy_template.xlsx"
+      link.download = "族谱人物导入模板.xlsx"
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } catch (err) {
       console.error("Failed to download template:", err)
     }
@@ -222,23 +125,23 @@ export default function ImportExcelPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold mb-2">必需列：</h3>
+              <h3 className="font-semibold mb-2">模板结构：</h3>
               <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                <li><strong>name</strong> - 姓名</li>
-                <li><strong>gender</strong> - 性别 (M=男，F=女)</li>
+                <li><strong>族谱人物数据</strong> - 包含完整的人物记录和关系</li>
+                <li><strong>字段说明</strong> - 详细的字段说明文档</li>
+                <li><strong>下载模板</strong> - 空模板，包含示例数据</li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-2">可选列：</h3>
+              <h3 className="font-semibold mb-2">关键字段：</h3>
               <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                <li>generation_number - 世代编号</li>
-                <li>branch_name - 支系名称</li>
-                <li>father_name - 父亲姓名</li>
-                <li>mother_name - 母亲姓名</li>
-                <li>birth_year - 出生年份</li>
-                <li>death_year - 逝世年份</li>
-                <li>birth_place - 出生地</li>
-                <li>biography - 生平简介</li>
+                <li><strong>人物序号</strong> - 全局唯一序号，从1开始</li>
+                <li><strong>姓名</strong> - 人物姓名</li>
+                <li><strong>性别</strong> - 男/女</li>
+                <li><strong>世代数</strong> - 世代编号</li>
+                <li><strong>父亲序号</strong> - 父亲的序号</li>
+                <li><strong>母亲序号</strong> - 母亲的序号</li>
+                <li><strong>配偶序号列表</strong> - 配偶序号，多个用逗号分隔</li>
               </ul>
             </div>
             <Button onClick={handleDownloadTemplate} variant="outline" size="sm">
@@ -248,10 +151,32 @@ export default function ImportExcelPage() {
           </CardContent>
         </Card>
         
+        {/* Replace Mode Toggle */}
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                <div>
+                  <div className="font-medium">替换导入模式</div>
+                  <div className="text-sm text-gray-600">
+                    开启后将先删除所有现有数据，再导入新数据。<br/>
+                    <span className="text-amber-600 font-medium">警告：此操作不可逆！</span>
+                  </div>
+                </div>
+              </div>
+              <Switch 
+                checked={replaceMode} 
+                onCheckedChange={setReplaceMode}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
         {/* Upload */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>上传文件</CardTitle>
+            <CardTitle>上传文件 {replaceMode && "(替换模式)"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">

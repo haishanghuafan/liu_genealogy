@@ -6,6 +6,17 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react"
 
+interface SpouseInfo {
+  id: string
+  name: string
+  gender: string
+}
+
+interface SpouseWithChildren {
+  spouse: SpouseInfo
+  children: PersonNode[]
+}
+
 interface PersonNode {
   id: string
   name: string
@@ -15,6 +26,7 @@ interface PersonNode {
   deathYear?: number
   avatar?: string
   courtesyName?: string
+  isSpouse?: boolean
   children?: PersonNode[]
 }
 
@@ -41,9 +53,10 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
   const fetchTreeData = async () => {
     try {
       setLoading(true)
+      // 增加 depth 参数以获取更多世代数据
       const url = rootPersonId
-        ? `/api/v1/t/${tenantSlug}/family-tree?root_id=${rootPersonId}`
-        : `/api/v1/t/${tenantSlug}/family-tree`
+        ? `http://localhost:8012/api/v1/t/${tenantSlug}/family-tree?root_id=${rootPersonId}&depth=10`
+        : `http://localhost:8012/api/v1/t/${tenantSlug}/family-tree?depth=10`
       
       const response = await fetch(url)
       const data = await response.json()
@@ -177,8 +190,8 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
         pathFunc="step"
         translate={translate}
         zoom={zoom}
-        nodeSize={{ x: 180, y: 120 }}
-        separation={{ siblings: 1.5, nonSiblings: 2 }}
+        nodeSize={{ x: 280, y: 160 }}
+        separation={{ siblings: 1.8, nonSiblings: 2.2 }}
         renderCustomNodeElement={(rd3tProps) => (
           <PersonNodeCard
             nodeData={rd3tProps.nodeDatum as PersonNode}
@@ -187,12 +200,11 @@ export function FamilyTreeCanvas({ tenantSlug, rootPersonId, onNodeClick }: Fami
         )}
         onNodeClick={(node) => {
           const nodeData = node.data as PersonNode
-          if (nodeData.id !== "virtual-root" && nodeData.id !== "isolated-persons" && onNodeClick) {
+          if (nodeData.id !== "virtual-root" && onNodeClick) {
             onNodeClick(nodeData.id)
           }
         }}
-        collapsible
-        initialDepth={3}
+        collapsible={false}
       />
     </div>
   )
@@ -205,8 +217,8 @@ interface PersonNodeCardProps {
 
 function PersonNodeCard({ nodeData, onNodeClick }: PersonNodeCardProps) {
   const isVirtualRoot = nodeData.id === "virtual-root"
-  const isIsolatedGroup = nodeData.id === "isolated-persons"
   const isMale = nodeData.gender !== "F"
+  const isSpouse = nodeData.isSpouse || false
   
   if (isVirtualRoot) {
     return (
@@ -222,35 +234,56 @@ function PersonNodeCard({ nodeData, onNodeClick }: PersonNodeCardProps) {
     )
   }
 
-  if (isIsolatedGroup) {
+  // 配偶节点显示样式
+  if (isSpouse) {
     return (
-      <foreignObject width={200} height={60} x={-100} y={-30}>
+      <foreignObject width={180} height={80} x={-90} y={-40}>
         <div
-          className="w-full h-full rounded-lg border-2 border-gray-400 bg-gray-50 dark:bg-gray-800 shadow-lg p-2 flex items-center justify-center cursor-default"
+          className={`
+            w-full h-full rounded-lg border-2 border-pink-300 bg-pink-50 dark:bg-pink-950
+            shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer
+            p-3 flex flex-col
+          `}
+          onClick={() => onNodeClick?.(nodeData.id)}
         >
-          <div className="font-medium text-gray-600 dark:text-gray-300 text-sm">
-            {nodeData.name}
+          <div className="flex items-center gap-3 flex-1">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-pink-500 flex items-center justify-center text-white font-bold">
+                {nodeData.name.charAt(0)}
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm truncate">{nodeData.name}</div>
+              {nodeData.generation && (
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  第{nodeData.generation}世
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </foreignObject>
     )
   }
 
+  // 主要人物节点显示样式
   const borderColor = isMale ? "border-blue-400" : "border-pink-400"
   const bgColor = isMale ? "bg-blue-50" : "bg-pink-50"
   const darkBgColor = isMale ? "dark:bg-blue-950" : "dark:bg-pink-950"
+  const avatarColor = isMale ? "bg-blue-500" : "bg-pink-500"
 
   return (
-    <foreignObject width={160} height={80} x={-80} y={-40}>
+    <foreignObject width={180} height={100} x={-90} y={-50}>
       <div
         className={`
           w-full h-full rounded-lg border-2 ${borderColor} ${bgColor} ${darkBgColor}
           shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer
-          p-2 overflow-hidden
+          p-3 flex flex-col
         `}
         onClick={() => onNodeClick?.(nodeData.id)}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-1">
           <div className="flex-shrink-0">
             {nodeData.avatar ? (
               <img
@@ -259,7 +292,7 @@ function PersonNodeCard({ nodeData, onNodeClick }: PersonNodeCardProps) {
                 className="w-10 h-10 rounded-full object-cover border-2 border-white"
               />
             ) : (
-              <div className={`w-10 h-10 rounded-full ${isMale ? "bg-blue-500" : "bg-pink-500"} flex items-center justify-center text-white font-bold`}>
+              <div className={`w-10 h-10 rounded-full ${avatarColor} flex items-center justify-center text-white font-bold`}>
                 {nodeData.name.charAt(0)}
               </div>
             )}

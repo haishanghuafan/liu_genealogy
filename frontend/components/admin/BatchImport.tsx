@@ -3,7 +3,9 @@
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Upload, FileText, AlertCircle, CheckCircle, X, Download } from "lucide-react"
+import { Upload, FileText, AlertCircle, CheckCircle, X, Download, AlertTriangle } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 interface BatchImportProps {
   tenantSlug: string
@@ -15,6 +17,7 @@ export function BatchImport({ tenantSlug, onSuccess, onClose }: BatchImportProps
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<any[]>([])
   const [importing, setImporting] = useState(false)
+  const [replaceMode, setReplaceMode] = useState(false)
   const [result, setResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -57,20 +60,23 @@ export function BatchImport({ tenantSlug, onSuccess, onClose }: BatchImportProps
       formData.append("file", file)
       
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/persons/batch-import`, {
+      const endpoint = replaceMode 
+        ? `http://localhost:8000/api/v1/t/${tenantSlug}/import/excel/replace`
+        : `http://localhost:8000/api/v1/t/${tenantSlug}/persons/batch-import`
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: formData
       })
       
       const data = await res.json()
-      if (data.success) {
+      if (data.success || data.imported_count > 0) {
         setResult({
-          success: data.data.success || 0,
-          failed: data.data.failed || 0,
-          errors: data.data.errors || []
+          success: data.imported_count || data.data?.success || 0,
+          failed: data.error_count || data.data?.failed || 0,
+          errors: data.errors || data.data?.errors || []
         })
-        if (data.data.success > 0) {
+        if (data.imported_count > 0 || data.data?.success > 0) {
           onSuccess()
         }
       } else {
@@ -84,17 +90,13 @@ export function BatchImport({ tenantSlug, onSuccess, onClose }: BatchImportProps
   }
   
   const downloadTemplate = () => {
-    const csv = `name,gender,generation_id,courtesy_name,art_name,birth_year,death_year,birth_place,father_name,mother_name,biography,visibility
-张三,M,1,子敬,,1950,2020,广东省梅州市,,,公开
-李四,F,1,,慧芳,1952,,,张三,,公开`
-    
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "人物导入模板.csv"
-    a.click()
-    URL.revokeObjectURL(url)
+    // 下载Excel模板文件
+    const link = document.createElement("a")
+    link.href = "/templates/liu_genealogy_template.xlsx"
+    link.download = "族谱人物导入模板.xlsx"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
   
   return (
@@ -118,6 +120,26 @@ export function BatchImport({ tenantSlug, onSuccess, onClose }: BatchImportProps
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-1" /> 下载模板
             </Button>
+          </div>
+          
+          {/* Replace Mode Toggle */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                <div>
+                  <div className="font-medium">替换导入模式</div>
+                  <div className="text-sm text-gray-500">
+                    开启后将先删除所有现有数据，再导入新数据。<br/>
+                    <span className="text-amber-600 font-medium">警告：此操作不可逆！</span>
+                  </div>
+                </div>
+              </div>
+              <Switch 
+                checked={replaceMode} 
+                onCheckedChange={setReplaceMode}
+              />
+            </div>
           </div>
           
           {/* File Upload */}

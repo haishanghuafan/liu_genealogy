@@ -32,6 +32,8 @@ class PersonBase(BaseModel):
     
     generation_id: Optional[int] = None
     branch_id: Optional[UUID] = None
+    branch_name: Optional[str] = Field(None, max_length=100)
+    branch_generation_name: Optional[str] = Field(None, max_length=100)
     
     father_id: Optional[UUID] = None
     mother_id: Optional[UUID] = None
@@ -71,6 +73,8 @@ class PersonUpdate(BaseModel):
     
     generation_id: Optional[int] = None
     branch_id: Optional[UUID] = None
+    branch_name: Optional[str] = Field(None, max_length=100)
+    branch_generation_name: Optional[str] = Field(None, max_length=100)
     
     father_id: Optional[UUID] = None
     mother_id: Optional[UUID] = None
@@ -106,6 +110,8 @@ class PersonResponse(BaseModel):
     
     generation_id: Optional[int] = None
     branch_id: Optional[str] = None
+    branch_name: Optional[str] = None
+    branch_generation_name: Optional[str] = None
     
     father_id: Optional[str] = None
     mother_id: Optional[str] = None
@@ -134,7 +140,7 @@ class PersonResponse(BaseModel):
     # Computed fields
     full_name: Optional[str] = None
     generation_name: Optional[str] = None
-    branch_name: Optional[str] = None
+    computed_branch_name: Optional[str] = None
     father_name: Optional[str] = None
     mother_name: Optional[str] = None
     

@@ -25,10 +25,12 @@ interface Person {
   courtesy_name?: string
   art_name?: string
   generation_number?: number
+  generation_name?: string
   gender: string
   birth_year?: number
   death_year?: number
   branch_name?: string
+  branch_generation_name?: string
   father_name?: string
 }
 
@@ -317,7 +319,16 @@ export default function PersonsPage() {
                           {person.gender === "F" ? "女" : "男"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{person.generation_number ? `第${person.generation_number}世` : "-"}</TableCell>
+                      <TableCell>
+                        {person.generation_name || 
+                         (person.generation_number && person.generation_number <= 10
+                          ? `第${person.generation_number}世`
+                          : person.branch_generation_name
+                            ? `${person.branch_generation_name} (支系)`
+                            : person.generation_number === 9999
+                              ? "未知世代"
+                              : "-")}
+                      </TableCell>
                       <TableCell>
                         {person.courtesy_name ? `字${person.courtesy_name}` : ""}
                         {person.art_name ? `号${person.art_name}` : ""}

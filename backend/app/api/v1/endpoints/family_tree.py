@@ -12,12 +12,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_tenant_db
 from app.middleware.tenant import require_tenant
 from app.models.system import Tenant
-from app.models.tenant import Person
+from app.models.tenant import Person, SpouseRelation
 
 router = APIRouter(prefix="/family-tree", tags=["Family Tree"])
 
 
 # Schemas
+class SpouseInfo(BaseModel):
+    id: str
+    name: str
+    gender: str = "F"
+    
+    class Config:
+        from_attributes = True
+
+
 class TreeNode(BaseModel):
     id: str
     name: str
@@ -27,6 +36,7 @@ class TreeNode(BaseModel):
     deathYear: Optional[int] = None
     avatar: Optional[str] = None
     courtesyName: Optional[str] = None
+    isSpouse: bool = False  # 标记是否为配偶节点
     children: list["TreeNode"] = []
     
     class Config:
@@ -50,7 +60,7 @@ class TreeStats(BaseModel):
 async def get_family_tree(
     request: Request,
     root_id: Optional[str] = Query(None, description="Root person ID"),
-    depth: int = Query(4, ge=1, le=10, description="Tree depth"),
+    depth: int = Query(10, ge=1, le=15, description="Tree depth"),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """Get family tree structure for visualization"""
@@ -102,9 +112,10 @@ async def build_full_tree(db: AsyncSession, max_depth: int) -> dict:
     result = await db.execute(stmt_count)
     total_persons = result.scalar()
 
+    # 只找乾正作为主树根
     stmt = (
         select(Person)
-        .where(Person.father_id == None)
+        .where(Person.father_id == None, Person.gender == "M", Person.generation_id == 1)
         .order_by(Person.generation_id, Person.sort_order, Person.id)
     )
     result = await db.execute(stmt)
@@ -114,40 +125,16 @@ async def build_full_tree(db: AsyncSession, max_depth: int) -> dict:
         return {"trees": [], "total_persons": total_persons, "total_trees": 0}
 
     trees = []
-    isolated_nodes = []
 
     for root in all_roots:
         child_stmt = select(func.count(Person.id)).where(Person.father_id == root.id)
         child_result = await db.execute(child_stmt)
         has_children = child_result.scalar() > 0
 
-        if has_children:
+        # 有子女的男性作为树根，乾正作为始祖始终显示
+        if has_children or root.name == "乾正":
             tree = await build_node_tree(db, root, max_depth)
             trees.append(tree)
-        else:
-            isolated_nodes.append(root)
-
-    if isolated_nodes:
-        isolated_children = []
-        for person in isolated_nodes:
-            isolated_children.append(TreeNode(
-                id=str(person.id),
-                name=person.name,
-                generation=person.generation_id,
-                gender=person.gender,
-                birthYear=person.birth_year,
-                deathYear=person.death_year,
-                avatar=person.avatar,
-                courtesyName=person.courtesy_name,
-                children=[],
-            ))
-        trees.append(TreeNode(
-            id="isolated-persons",
-            name=f"其他成员 ({len(isolated_nodes)}人)",
-            generation=0,
-            gender="M",
-            children=isolated_children,
-        ))
 
     return {
         "trees": trees,
@@ -161,8 +148,30 @@ async def build_node_tree(
     person: Person,
     remaining_depth: int
 ) -> TreeNode:
-    """Recursively build tree node with children"""
+    """Recursively build tree node with spouses as separate branches"""
     
+    # 获取所有配偶信息
+    if person.gender == "M":
+        # 查找所有妻子
+        stmt = (
+            select(Person, SpouseRelation)
+            .join(SpouseRelation, SpouseRelation.wife_id == Person.id)
+            .where(SpouseRelation.husband_id == person.id)
+            .order_by(SpouseRelation.sort_order)
+        )
+    else:
+        # 查找所有丈夫
+        stmt = (
+            select(Person, SpouseRelation)
+            .join(SpouseRelation, SpouseRelation.husband_id == Person.id)
+            .where(SpouseRelation.wife_id == person.id)
+            .order_by(SpouseRelation.sort_order)
+        )
+    
+    result = await db.execute(stmt)
+    spouse_relations = result.all()
+    
+    # 构建节点
     node = TreeNode(
         id=str(person.id),
         name=person.name,
@@ -172,23 +181,57 @@ async def build_node_tree(
         deathYear=person.death_year,
         avatar=person.avatar,
         courtesyName=person.courtesy_name,
+        isSpouse=False,
         children=[],
     )
     
-    # Recursively get children if depth allows
+    # 为每个配偶创建独立的子节点
     if remaining_depth > 0:
-        # Get children (where this person is father)
-        stmt = (
-            select(Person)
-            .where(Person.father_id == person.id)
-            .order_by(Person.sort_order, Person.id)
-        )
-        result = await db.execute(stmt)
-        children = result.scalars().all()
-        
-        for child in children:
-            child_node = await build_node_tree(db, child, remaining_depth - 1)
-            node.children.append(child_node)
+        for spouse_person, spouse_rel in spouse_relations:
+            # 创建配偶节点
+            spouse_node = TreeNode(
+                id=str(spouse_person.id),
+                name=spouse_person.name,
+                generation=spouse_person.generation_id,
+                gender=spouse_person.gender,
+                birthYear=spouse_person.birth_year,
+                deathYear=spouse_person.death_year,
+                avatar=spouse_person.avatar,
+                courtesyName=spouse_person.courtesy_name,
+                isSpouse=True,
+                children=[],
+            )
+            
+            # 获取该配偶的子女
+            if person.gender == "M":
+                # person是父亲，spouse是母亲
+                stmt_children = (
+                    select(Person)
+                    .where(
+                        Person.father_id == person.id,
+                        Person.mother_id == spouse_person.id
+                    )
+                    .order_by(Person.sort_order, Person.id)
+                )
+            else:
+                # person是母亲，spouse是父亲
+                stmt_children = (
+                    select(Person)
+                    .where(
+                        Person.mother_id == person.id,
+                        Person.father_id == spouse_person.id
+                    )
+                    .order_by(Person.sort_order, Person.id)
+                )
+            
+            result_children = await db.execute(stmt_children)
+            children_persons = result_children.scalars().all()
+            
+            for child in children_persons:
+                child_node = await build_node_tree(db, child, remaining_depth - 1)
+                spouse_node.children.append(child_node)
+            
+            node.children.append(spouse_node)
     
     return node
 

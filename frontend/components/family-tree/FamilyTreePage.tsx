@@ -205,9 +205,9 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-auto">
         {/* Tree Canvas */}
-        <div className="flex-1 relative bg-paper-warm">
+        <div className="flex-1 relative bg-paper-warm min-h-[1500px]">
           {viewMode === "tree" ? (
             <FamilyTreeCanvas
               tenantSlug={tenantSlug}

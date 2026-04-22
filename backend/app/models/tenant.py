@@ -114,6 +114,8 @@ class Person(Base):
 
     # Branch
     branch_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    branch_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    branch_generation_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     
     # Birth/Death
     birth_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
