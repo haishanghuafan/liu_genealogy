@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import api from "@/lib/api"
+import { UserMenu } from "@/components/layout/UserMenu"
 
 interface Tenant {
   id: string
@@ -18,8 +19,13 @@ export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
+    // Check login status
+    const token = localStorage.getItem("access_token")
+    setIsLoggedIn(!!token)
+
     fetchTenants()
   }, [])
 
@@ -52,11 +58,27 @@ export default function TenantsPage() {
             <Link href="/tenants" className="text-vermillion font-medium flex items-center gap-1">
               <span>🔍</span> 浏览家族
             </Link>
-            <Link href="/login" className="text-ink-muted hover:text-ink transition-colors">登录</Link>
-            <Link href="/register" className="bg-vermillion text-white px-4 py-2 rounded-lg hover:bg-vermillion-dark transition-colors flex items-center gap-1">
-              <span>✨</span> 创建族谱
-            </Link>
+            {isLoggedIn ? (
+              <UserMenu />
+            ) : (
+              <>
+                <Link href="/login" className="text-ink-muted hover:text-ink transition-colors">登录</Link>
+                <Link href="/register" className="bg-vermillion text-white px-4 py-2 rounded-lg hover:bg-vermillion-dark transition-colors flex items-center gap-1">
+                  <span>✨</span> 创建族谱
+                </Link>
+              </>
+            )}
           </div>
+
+          {isLoggedIn ? (
+            <div className="md:hidden">
+              <UserMenu />
+            </div>
+          ) : (
+            <Link href="/register" className="md:hidden bg-vermillion text-white px-4 py-2 rounded-lg text-sm">
+              开始
+            </Link>
+          )}
         </div>
       </nav>
 

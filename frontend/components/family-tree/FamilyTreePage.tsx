@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
+import { UserMenu } from "@/components/layout/UserMenu"
 
 // Dynamically import FamilyTreeCanvas to avoid SSR issues with react-d3-tree
 const FamilyTreeCanvas = dynamic(
@@ -83,13 +84,16 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
 
   const trackPageVisit = async () => {
     try {
-      const token = localStorage.getItem("access_token") || ""
+      const token = localStorage.getItem("access_token")
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
       await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/analytics/track`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           path: `/t/${tenantSlug}/family-tree`,
           page_type: "family_tree",
@@ -192,6 +196,10 @@ export function FamilyTreePage({ tenantSlug, tenantName }: FamilyTreePageProps) 
                 原始资料
               </button>
             </div>
+
+            {/* User Menu */}
+            <div className="w-px h-6 bg-ink/10" />
+            <UserMenu />
           </div>
         </div>
       </header>

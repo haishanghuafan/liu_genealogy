@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
+import { UserMenu } from "@/components/layout/UserMenu"
 
 interface Plan {
   id: string
@@ -147,9 +148,13 @@ export default function SubscriptionPage() {
             <span className="text-2xl">📜</span>
             <span className="font-serif text-xl font-bold text-vermillion">族谱云</span>
           </Link>
-          <Link href={`/t/${tenantSlug}`} className="text-ink-muted hover:text-ink flex items-center gap-1">
-            <span>←</span> 返回
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href={`/t/${tenantSlug}`} className="text-ink-muted hover:text-ink flex items-center gap-1">
+              <span>←</span> 返回
+            </Link>
+            <div className="w-px h-6 bg-ink/10" />
+            <UserMenu />
+          </div>
         </div>
       </nav>
       

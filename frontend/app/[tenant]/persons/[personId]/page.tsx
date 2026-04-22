@@ -79,8 +79,13 @@ export default function PersonDetailPage() {
   const [treeData, setTreeData] = useState<FiveGenTree | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
+    // Check login status
+    const token = localStorage.getItem("access_token")
+    setIsLoggedIn(!!token)
+
     fetchPerson()
     fetchTree()
   }, [tenantSlug, personId])
@@ -153,12 +158,14 @@ export default function PersonDetailPage() {
               <span className="text-gray-500 text-sm">字{person.courtesy_name}</span>
             )}
           </div>
-          <Link href={`/t/${tenantSlug}/admin/persons`}>
-            <Button size="sm">
-              <Edit className="h-4 w-4 mr-2" />
-              编辑
-            </Button>
-          </Link>
+          {isLoggedIn && (
+            <Link href={`/t/${tenantSlug}/admin/persons/${personId}/edit`}>
+              <Button size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                编辑
+              </Button>
+            </Link>
+          )}
         </div>
       </header>
 

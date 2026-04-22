@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import { UserMenu } from "@/components/layout/UserMenu"
 
 interface TenantInfo {
   id: string
@@ -79,24 +80,26 @@ export default function TenantHomePage() {
             <span className="font-serif text-xl font-bold text-vermillion">族谱云</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link 
-              href={`/t/${tenantSlug}/settings`} 
+            <Link
+              href={`/t/${tenantSlug}/settings`}
               className="text-ink-muted hover:text-ink px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
             >
               <span>⚙️</span> 设置
             </Link>
-            <Link 
-              href={`/t/${tenantSlug}/subscription`} 
+            <Link
+              href={`/t/${tenantSlug}/subscription`}
               className="text-ink-muted hover:text-ink px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
             >
               <span>💎</span> 订阅
             </Link>
-            <Link 
-              href={`/t/${tenantSlug}/members`} 
+            <Link
+              href={`/t/${tenantSlug}/members`}
               className="text-ink-muted hover:text-ink px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1"
             >
               <span>👥</span> 成员
             </Link>
+            <div className="w-px h-6 bg-ink/10 mx-1" />
+            <UserMenu />
           </div>
         </div>
       </nav>

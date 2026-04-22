@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import { UserMenu } from "@/components/layout/UserMenu"
 
 interface TenantInfo {
   id: string
@@ -16,8 +17,13 @@ export default function TenantHomePage() {
   const tenantSlug = params.tenant as string
   const [tenant, setTenant] = useState<TenantInfo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
+    // Check login status
+    const token = localStorage.getItem("access_token")
+    setIsLoggedIn(!!token)
+
     if (tenantSlug) {
       fetchTenantInfo()
     }
@@ -68,7 +74,27 @@ export default function TenantHomePage() {
             <Link href="/tenants" className="text-ink-muted hover:text-ink transition-colors">
               浏览家族
             </Link>
+            {isLoggedIn ? (
+              <UserMenu />
+            ) : (
+              <>
+                <Link href="/login" className="text-ink-muted hover:text-ink transition-colors">登录</Link>
+                <Link href="/register" className="bg-vermillion text-white px-4 py-2 rounded-lg hover:bg-vermillion-dark transition-colors flex items-center gap-1">
+                  <span>✨</span> 创建族谱
+                </Link>
+              </>
+            )}
           </div>
+
+          {isLoggedIn ? (
+            <div className="md:hidden">
+              <UserMenu />
+            </div>
+          ) : (
+            <Link href="/register" className="md:hidden bg-vermillion text-white px-4 py-2 rounded-lg text-sm">
+              开始
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -77,11 +103,11 @@ export default function TenantHomePage() {
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-vermillion/10 text-vermillion text-4xl font-serif font-bold mb-8 border-2 border-vermillion/20">
             {tenant?.surname?.charAt(0) || tenantSlug.charAt(0).toUpperCase()}
           </div>
-          
+
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-ink mb-4">
             {tenantName}
           </h1>
-          
+
           <p className="text-lg text-ink-muted mb-12">
             传承家族记忆，让血脉有迹可循
           </p>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
+import { UserMenu } from "@/components/layout/UserMenu"
 
 interface UserInfo {
   id: string
@@ -85,18 +86,9 @@ export default function DashboardPage() {
             <span className="text-2xl">📜</span>
             <span className="font-serif text-xl font-bold text-vermillion">族谱云</span>
           </Link>
-          
+
           <div className="flex items-center gap-4">
-            <div className="text-sm text-ink-muted">
-              {user?.nickname || user?.email}
-              {isSuperAdmin && <span className="ml-2 text-vermillion">👑 超级管理员</span>}
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="text-ink-muted hover:text-ink transition-colors text-sm flex items-center gap-1"
-            >
-              <span>🚪</span> 退出
-            </button>
+            <UserMenu />
           </div>
         </div>
       </nav>
