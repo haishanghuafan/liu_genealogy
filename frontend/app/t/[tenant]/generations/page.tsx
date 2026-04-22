@@ -73,7 +73,7 @@ export default function GenerationsPage() {
   const fetchGenerations = async () => {
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/generations`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/generations`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       const data = await res.json()
@@ -92,7 +92,7 @@ export default function GenerationsPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/generations`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/generations`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -127,7 +127,7 @@ export default function GenerationsPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/generations/${editingGeneration.id}`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/generations/${editingGeneration.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -158,7 +158,7 @@ export default function GenerationsPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/generations/${generationId}`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/generations/${generationId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       })

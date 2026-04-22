@@ -75,7 +75,7 @@ export default function BranchesPage() {
   const fetchBranches = async () => {
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/branches`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/branches`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       const data = await res.json()
@@ -94,7 +94,7 @@ export default function BranchesPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/branches`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/branches`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -126,7 +126,7 @@ export default function BranchesPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/branches/${editingBranch.id}`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/branches/${editingBranch.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -154,7 +154,7 @@ export default function BranchesPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/branches/${branchId}`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/branches/${branchId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       })

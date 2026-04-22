@@ -16,6 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  Maximize2,
 } from "lucide-react"
 import { Tree } from "react-d3-tree"
 
@@ -398,7 +399,7 @@ function convertToD3TreeData(tree: FiveGenTree) {
 function FiveGenerationTree({ tree, tenantSlug }: { tree: FiveGenTree; tenantSlug: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState(1)
-  const [translate, setTranslate] = useState({ x: 400, y: 50 })
+  const [translate, setTranslate] = useState({ x: 400, y: 80 })
 
   const treeData = useCallback(() => convertToD3TreeData(tree), [tree])()
 
@@ -406,7 +407,14 @@ function FiveGenerationTree({ tree, tenantSlug }: { tree: FiveGenTree; tenantSlu
   const handleZoomOut = () => setZoom((z) => Math.max(z / 1.2, 0.3))
   const handleReset = () => {
     setZoom(1)
-    setTranslate({ x: 400, y: 50 })
+    setTranslate({ x: 400, y: 80 })
+  }
+  const handleFitScreen = () => {
+    if (containerRef.current) {
+      const { width, height } = containerRef.current.getBoundingClientRect()
+      setTranslate({ x: width / 2, y: 80 })
+      setZoom(0.8)
+    }
   }
 
   const handleNodeClick = (node: any) => {
@@ -417,7 +425,7 @@ function FiveGenerationTree({ tree, tenantSlug }: { tree: FiveGenTree; tenantSlu
   }
 
   return (
-    <div className="relative w-full h-[600px]" ref={containerRef}>
+    <div className="relative w-full h-[700px]" ref={containerRef}>
       {/* Control Panel */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         <Button variant="outline" size="icon" onClick={handleZoomIn}>
@@ -426,13 +434,25 @@ function FiveGenerationTree({ tree, tenantSlug }: { tree: FiveGenTree; tenantSlu
         <Button variant="outline" size="icon" onClick={handleZoomOut}>
           <ZoomOut className="h-4 w-4" />
         </Button>
+        <Button variant="outline" size="icon" onClick={handleFitScreen}>
+          <Maximize2 className="h-4 w-4" />
+        </Button>
         <Button variant="outline" size="icon" onClick={handleReset}>
           <RotateCcw className="h-4 w-4" />
         </Button>
       </div>
 
+      {/* Stats */}
+      <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-gray-800/90 rounded-lg p-3 shadow-lg">
+        <div className="text-sm font-medium">五代族谱</div>
+        <div className="text-xs text-gray-500 mt-1">
+          上{tree.ancestors.length}代 · 本人 · 下{tree.total_generations}代
+        </div>
+      </div>
+
       {/* Legend */}
       <div className="absolute bottom-4 left-4 z-10 bg-white/90 dark:bg-gray-800/90 rounded-lg p-3 shadow-lg">
+        <div className="text-sm font-medium mb-2">图例</div>
         <div className="flex gap-4 text-xs">
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 rounded-full bg-blue-500" />
@@ -441,6 +461,10 @@ function FiveGenerationTree({ tree, tenantSlug }: { tree: FiveGenTree; tenantSlu
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 rounded-full bg-pink-500" />
             <span>女性</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-0.5 bg-gray-400" />
+            <span>父子</span>
           </div>
         </div>
       </div>
@@ -452,14 +476,14 @@ function FiveGenerationTree({ tree, tenantSlug }: { tree: FiveGenTree; tenantSlu
         pathFunc="step"
         translate={translate}
         zoom={zoom}
-        nodeSize={{ x: 160, y: 100 }}
-        separation={{ siblings: 1.5, nonSiblings: 2 }}
+        nodeSize={{ x: 280, y: 160 }}
+        separation={{ siblings: 1.8, nonSiblings: 2.2 }}
         renderCustomNodeElement={(rd3tProps) => (
           <PersonNodeCard nodeData={rd3tProps.nodeDatum} onNodeClick={handleNodeClick} />
         )}
         onNodeClick={handleNodeClick}
         collapsible
-        initialDepth={3}
+        initialDepth={5}
       />
     </div>
   )

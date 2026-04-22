@@ -35,14 +35,19 @@ export default function AdminTenantsPage() {
   const fetchData = async () => {
     const token = localStorage.getItem("access_token") || ""
     try {
-      const tenantsRes = await fetch("http://localhost:8000/api/v1/tenants", {
+      const tenantsRes = await fetch("http://localhost:8012/api/v1/tenants", {
         headers: { "Authorization": `Bearer ${token}` }
       })
       const tenantsData = await tenantsRes.json()
       if (tenantsData.success) setTenants(tenantsData.data)
       
-      // Users endpoint - would be /admin/users in production
-      // Placeholder for now
+      const usersRes = await fetch("http://localhost:8012/api/v1/auth/admin/users", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      if (usersRes.ok) {
+        const usersData = await usersRes.json()
+        if (usersData.success) setUsers(usersData.data)
+      }
     } catch (err) {
       console.error("Failed to fetch")
     } finally {
@@ -175,24 +180,46 @@ export default function AdminTenantsPage() {
             <table className="w-full">
               <thead className="bg-paper-warm">
                 <tr>
-                  <th className="text-left px-6 py-4 font-medium">用户</th>
+                  <th className="text-left px-6 py-4 font-medium">昵称</th>
                   <th className="text-left px-6 py-4 font-medium">邮箱</th>
                   <th className="text-left px-6 py-4 font-medium">角色</th>
                   <th className="text-left px-6 py-4 font-medium">状态</th>
                   <th className="text-left px-6 py-4 font-medium">注册时间</th>
                 </tr>
               </thead>
-              <tbody>
-                {users.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="text-center py-12 text-ink-muted">
-                      <div className="text-4xl mb-4">👥</div>
-                      <p>暂无用户数据</p>
+              <tbody className="divide-y divide-ink/5">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium">{user.nickname || "-"}</td>
+                    <td className="px-6 py-4">{user.email}</td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        user.system_role === "super_admin" ? "bg-amber-100 text-amber-700" :
+                        user.system_role === "operator" ? "bg-blue-100 text-blue-700" :
+                        "bg-gray-100 text-gray-600"
+                      }`}>
+                        {ROLE_NAMES[user.system_role] || user.system_role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs px-2 py-1 rounded ${user.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {user.is_active ? "活跃" : "禁用"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-ink-muted">
+                      {new Date(user.created_at).toLocaleDateString("zh-CN")}
                     </td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
+            
+            {users.length === 0 && (
+              <div className="text-center py-12 text-ink-muted">
+                <div className="text-4xl mb-4">👥</div>
+                <p>暂无用户数据</p>
+              </div>
+            )}
           </div>
         )}
         

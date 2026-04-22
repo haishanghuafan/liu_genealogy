@@ -57,10 +57,10 @@ export default function MembersPage() {
       const token = localStorage.getItem("access_token") || ""
       
       const [membersRes, quotasRes] = await Promise.all([
-        fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/members`, {
+        fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/members`, {
           headers: { "Authorization": `Bearer ${token}` }
         }),
-        fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/subscription/quotas`, {
+        fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/subscription/quotas`, {
           headers: { "Authorization": `Bearer ${token}` }
         })
       ])
@@ -83,7 +83,7 @@ export default function MembersPage() {
     setSuccess("")
     
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/members/invite`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/members/invite`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,7 +108,7 @@ export default function MembersPage() {
   
   const handleUpdateRole = async (memberId: string, newRole: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/members/${memberId}/role`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/members/${memberId}/role`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -133,7 +133,7 @@ export default function MembersPage() {
     if (!confirm("确定要移除该成员吗？")) return
     
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/members/${memberId}`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/members/${memberId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${localStorage.getItem("access_token") || ""}` }
       })

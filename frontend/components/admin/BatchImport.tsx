@@ -61,8 +61,8 @@ export function BatchImport({ tenantSlug, onSuccess, onClose }: BatchImportProps
       
       const token = localStorage.getItem("access_token") || ""
       const endpoint = replaceMode 
-        ? `http://localhost:8000/api/v1/t/${tenantSlug}/import/excel/replace`
-        : `http://localhost:8000/api/v1/t/${tenantSlug}/persons/batch-import`
+        ? `http://localhost:8012/api/v1/t/${tenantSlug}/import/excel/replace`
+        : `http://localhost:8012/api/v1/t/${tenantSlug}/persons/batch-import`
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },

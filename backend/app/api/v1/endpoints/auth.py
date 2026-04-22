@@ -17,7 +17,7 @@ from app.core.security import (
     verify_password,
     verify_token,
 )
-from app.middleware.auth import get_current_user_required
+from app.middleware.auth import get_current_user_required, get_superuser
 from app.models import User
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -217,3 +217,116 @@ async def get_current_user_info(
         avatar=user.avatar,
         system_role=user.system_role,
     )
+
+
+# ============ Admin Endpoints ============
+
+class AdminUserResponse(BaseModel):
+    id: str
+    email: str
+    nickname: str | None
+    avatar: str | None
+    system_role: str
+    is_active: bool
+    email_verified: bool
+    created_at: str
+    last_login_at: str | None
+    
+    class Config:
+        from_attributes = True
+
+
+class AdminUserUpdate(BaseModel):
+    nickname: str | None = None
+    system_role: str | None = None
+    is_active: bool | None = None
+
+
+@router.get("/admin/users", response_model=dict)
+async def admin_list_users(
+    _admin=Depends(get_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: List all users"""
+    stmt = select(User).order_by(User.created_at.desc())
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+    
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": str(u.id),
+                "email": u.email,
+                "nickname": u.nickname,
+                "avatar": u.avatar,
+                "system_role": u.system_role,
+                "is_active": u.is_active,
+                "email_verified": u.email_verified,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+                "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
+            }
+            for u in users
+        ],
+    }
+
+
+@router.put("/admin/users/{user_id}", response_model=dict)
+async def admin_update_user(
+    user_id: str,
+    data: AdminUserUpdate,
+    _admin=Depends(get_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: Update user"""
+    from uuid import UUID
+    
+    stmt = select(User).where(User.id == UUID(user_id))
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    updates = data.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(user, key, value)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "用户已更新",
+        "data": {
+            "id": str(user.id),
+            "email": user.email,
+            "nickname": user.nickname,
+            "system_role": user.system_role,
+            "is_active": user.is_active,
+        },
+    }
+
+
+@router.delete("/admin/users/{user_id}", response_model=dict)
+async def admin_delete_user(
+    user_id: str,
+    _admin=Depends(get_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: Delete user"""
+    from uuid import UUID
+    
+    stmt = select(User).where(User.id == UUID(user_id))
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    if user.system_role == "super_admin":
+        raise HTTPException(400, "Cannot delete super admin")
+    
+    await db.delete(user)
+    await db.commit()
+    
+    return {"success": True, "message": "用户已删除"}

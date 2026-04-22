@@ -53,7 +53,7 @@ export default function SettingsPage() {
   const fetchSettings = async () => {
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/settings`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/settings`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       const data = await res.json()
@@ -85,7 +85,7 @@ export default function SettingsPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/settings`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

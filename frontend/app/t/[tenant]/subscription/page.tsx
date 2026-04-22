@@ -56,12 +56,12 @@ export default function SubscriptionPage() {
   const fetchData = async () => {
     try {
       // Fetch plans (public)
-      const plansRes = await fetch("http://localhost:8000/api/v1/subscription/plans")
+      const plansRes = await fetch("http://localhost:8012/api/v1/subscription/plans")
       const plansData = await plansRes.json()
       if (plansData.success) setPlans(plansData.data)
       
       // Fetch current subscription
-      const currentRes = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/subscription/current`, {
+      const currentRes = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/subscription/current`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("access_token") || ""}` }
       })
       const currentData = await currentRes.json()
@@ -81,7 +81,7 @@ export default function SubscriptionPage() {
     setSuccess("")
     
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/subscription/upgrade`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/subscription/upgrade`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -109,7 +109,7 @@ export default function SubscriptionPage() {
     
     setUpgrading(true)
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/subscription/cancel`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/subscription/cancel`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${localStorage.getItem("access_token") || ""}` }
       })

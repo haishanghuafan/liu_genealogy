@@ -2,8 +2,12 @@
 Subscription plans configuration
 Editable for pricing adjustments
 """
-from typing import Dict
+from typing import Dict, Any
 from pydantic import BaseModel
+import json
+import os
+
+PLAN_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "plans_config.json")
 
 
 class PlanFeatures(BaseModel):
@@ -19,14 +23,12 @@ class PlanFeatures(BaseModel):
     priority_support: str  # "community" | "email" | "priority" | "dedicated"
 
 
-# Subscription Plans Configuration
-# Edit these values to adjust pricing and features
-SUBSCRIPTION_PLANS: Dict[str, Dict] = {
+DEFAULT_SUBSCRIPTION_PLANS: Dict[str, Dict] = {
     "free": {
         "name": "免费版",
         "price_cny": 0,
         "price_usd": 0,
-        "billing_period": None,  # None = free forever
+        "billing_period": None,
         "features": PlanFeatures(
             max_persons=100,
             max_members=5,
@@ -43,11 +45,11 @@ SUBSCRIPTION_PLANS: Dict[str, Dict] = {
         "name": "基础版",
         "price_cny": 99,
         "price_usd": 14,
-        "billing_period": "yearly",  # yearly | monthly
+        "billing_period": "yearly",
         "features": PlanFeatures(
             max_persons=500,
             max_members=20,
-            max_storage_mb=1024,  # 1GB
+            max_storage_mb=1024,
             max_admins=3,
             advanced_visualization=True,
             data_export=True,
@@ -64,7 +66,7 @@ SUBSCRIPTION_PLANS: Dict[str, Dict] = {
         "features": PlanFeatures(
             max_persons=5000,
             max_members=100,
-            max_storage_mb=10240,  # 10GB
+            max_storage_mb=10240,
             max_admins=10,
             advanced_visualization=True,
             data_export=True,
@@ -79,9 +81,9 @@ SUBSCRIPTION_PLANS: Dict[str, Dict] = {
         "price_usd": 140,
         "billing_period": "yearly",
         "features": PlanFeatures(
-            max_persons=-1,  # -1 = unlimited
+            max_persons=-1,
             max_members=-1,
-            max_storage_mb=102400,  # 100GB
+            max_storage_mb=102400,
             max_admins=-1,
             advanced_visualization=True,
             data_export=True,
@@ -92,6 +94,48 @@ SUBSCRIPTION_PLANS: Dict[str, Dict] = {
     },
 }
 
+SUBSCRIPTION_PLANS: Dict[str, Dict] = {}
+
+
+def _load_plans():
+    """Load plans from config file or use defaults"""
+    global SUBSCRIPTION_PLANS
+    if os.path.exists(PLAN_CONFIG_FILE):
+        try:
+            with open(PLAN_CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for plan_id, plan_data in data.items():
+                features = PlanFeatures(**plan_data["features"])
+                SUBSCRIPTION_PLANS[plan_id] = {
+                    "name": plan_data["name"],
+                    "price_cny": plan_data["price_cny"],
+                    "price_usd": plan_data["price_usd"],
+                    "billing_period": plan_data.get("billing_period"),
+                    "features": features,
+                }
+        except Exception:
+            SUBSCRIPTION_PLANS = DEFAULT_SUBSCRIPTION_PLANS.copy()
+    else:
+        SUBSCRIPTION_PLANS = DEFAULT_SUBSCRIPTION_PLANS.copy()
+
+
+def _save_plans():
+    """Save plans to config file"""
+    data = {}
+    for plan_id, plan_data in SUBSCRIPTION_PLANS.items():
+        data[plan_id] = {
+            "name": plan_data["name"],
+            "price_cny": plan_data["price_cny"],
+            "price_usd": plan_data["price_usd"],
+            "billing_period": plan_data.get("billing_period"),
+            "features": plan_data["features"].model_dump(),
+        }
+    with open(PLAN_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+_load_plans()
+
 
 def get_plan(plan_name: str) -> Dict:
     """Get plan configuration by name"""
@@ -101,6 +145,28 @@ def get_plan(plan_name: str) -> Dict:
 def get_all_plans() -> Dict:
     """Get all available plans"""
     return SUBSCRIPTION_PLANS
+
+
+def update_plan(plan_id: str, updates: Dict[str, Any]) -> Dict:
+    """Update plan configuration"""
+    if plan_id not in SUBSCRIPTION_PLANS:
+        return {}
+    
+    plan = SUBSCRIPTION_PLANS[plan_id]
+    
+    if "name" in updates:
+        plan["name"] = updates["name"]
+    if "price_cny" in updates:
+        plan["price_cny"] = updates["price_cny"]
+    if "price_usd" in updates:
+        plan["price_usd"] = updates["price_usd"]
+    if "billing_period" in updates:
+        plan["billing_period"] = updates["billing_period"]
+    if "features" in updates:
+        plan["features"] = PlanFeatures(**updates["features"])
+    
+    _save_plans()
+    return plan
 
 
 def get_plan_features(plan_name: str) -> PlanFeatures:
@@ -117,7 +183,6 @@ def check_plan_limit(plan_name: str, resource: str, current_value: int) -> bool:
     features = get_plan_features(plan_name)
     limit = getattr(features, resource, None)
     
-    # -1 means unlimited
     if limit == -1:
         return True
     

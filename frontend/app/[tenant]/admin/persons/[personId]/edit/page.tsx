@@ -96,7 +96,7 @@ export default function PersonEditPage() {
       const headers = { "Authorization": `Bearer ${token}` }
       
       // Fetch person data
-      const personRes = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/persons/${personId}`, { headers })
+      const personRes = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/persons/${personId}`, { headers })
       const personData = await personRes.json()
       
       if (personData.success) {
@@ -126,9 +126,9 @@ export default function PersonEditPage() {
       
       // Fetch generations and branches
       const [genRes, branchRes, personRes2] = await Promise.all([
-        fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/generations`, { headers }),
-        fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/branches`, { headers }),
-        fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/persons`, { headers }),
+        fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/generations`, { headers }),
+        fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/branches`, { headers }),
+        fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/persons`, { headers }),
       ])
       
       const genData = await genRes.json()
@@ -155,7 +155,7 @@ export default function PersonEditPage() {
     
     try {
       const token = localStorage.getItem("access_token") || ""
-      const res = await fetch(`http://localhost:8000/api/v1/t/${tenantSlug}/persons/${personId}`, {
+      const res = await fetch(`http://localhost:8012/api/v1/t/${tenantSlug}/persons/${personId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

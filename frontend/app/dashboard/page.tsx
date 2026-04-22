@@ -258,7 +258,7 @@ export default function DashboardPage() {
             </Link>
             
             <a
-              href="http://localhost:8000/api/v1/docs"
+              href="http://localhost:8012/api/v1/docs"
               target="_blank"
               className="bg-white rounded-xl p-6 border border-ink/5 hover:shadow-lg transition-all hover:-translate-y-1 group"
             >

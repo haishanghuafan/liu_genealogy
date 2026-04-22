@@ -14,8 +14,9 @@ from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.plans import get_plan, get_all_plans, format_plan_price
+from app.core.plans import get_plan, get_all_plans, format_plan_price, update_plan
 from app.middleware.tenant import require_tenant
+from app.middleware.auth import get_superuser
 from app.models.system import Subscription, Tenant, TenantUser
 
 router = APIRouter(prefix="/subscription", tags=["Subscription"])
@@ -33,6 +34,83 @@ class SubscriptionUpgrade(BaseModel):
 class SubscriptionCreate(BaseModel):
     plan: str = Field(..., pattern="^(free|basic|professional|enterprise)$")
     payment_method: str = "manual"
+
+
+class PlanUpdate(BaseModel):
+    name: Optional[str] = None
+    price_cny: Optional[float] = None
+    price_usd: Optional[float] = None
+    billing_period: Optional[str] = None
+    features: Optional[dict] = None
+
+
+# ============ Admin Endpoints ============
+
+@router.get("/admin/plans", response_model=dict)
+async def admin_list_plans(
+    _admin=Depends(get_superuser),
+):
+    """Admin: List all subscription plans with full details"""
+    plans = get_all_plans()
+    result = []
+    for plan_id, plan_data in plans.items():
+        result.append({
+            "id": plan_id,
+            "name": plan_data["name"],
+            "price_cny": plan_data["price_cny"],
+            "price_usd": plan_data["price_usd"],
+            "billing_period": plan_data.get("billing_period"),
+            "features": {
+                "max_persons": plan_data["features"].max_persons,
+                "max_members": plan_data["features"].max_members,
+                "max_storage_mb": plan_data["features"].max_storage_mb,
+                "max_admins": plan_data["features"].max_admins,
+                "advanced_visualization": plan_data["features"].advanced_visualization,
+                "data_export": plan_data["features"].data_export,
+                "api_access": plan_data["features"].api_access,
+                "custom_domain": plan_data["features"].custom_domain,
+                "priority_support": plan_data["features"].priority_support,
+            },
+        })
+    
+    return {"success": True, "data": result}
+
+
+@router.put("/admin/plans/{plan_id}", response_model=dict)
+async def admin_update_plan(
+    plan_id: str,
+    data: PlanUpdate,
+    _admin=Depends(get_superuser),
+):
+    """Admin: Update a subscription plan configuration"""
+    updates = data.model_dump(exclude_unset=True)
+    updated_plan = update_plan(plan_id, updates)
+    
+    if not updated_plan:
+        raise HTTPException(404, f"Plan '{plan_id}' not found")
+    
+    return {
+        "success": True,
+        "message": f"套餐 '{updated_plan['name']}' 已更新",
+        "data": {
+            "id": plan_id,
+            "name": updated_plan["name"],
+            "price_cny": updated_plan["price_cny"],
+            "price_usd": updated_plan["price_usd"],
+            "billing_period": updated_plan.get("billing_period"),
+            "features": {
+                "max_persons": updated_plan["features"].max_persons,
+                "max_members": updated_plan["features"].max_members,
+                "max_storage_mb": updated_plan["features"].max_storage_mb,
+                "max_admins": updated_plan["features"].max_admins,
+                "advanced_visualization": updated_plan["features"].advanced_visualization,
+                "data_export": updated_plan["features"].data_export,
+                "api_access": updated_plan["features"].api_access,
+                "custom_domain": updated_plan["features"].custom_domain,
+                "priority_support": updated_plan["features"].priority_support,
+            },
+        },
+    }
 
 
 # ============ Public Endpoints ============
